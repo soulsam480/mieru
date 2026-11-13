@@ -20,6 +20,7 @@ data class PlayerUiState(
     val options: List<StreamOption> = emptyList(),
     val selected: Int = 0,
     val startPositionMs: Long = 0L,
+    val artworkUrl: String? = null,
     val loading: Boolean = true,
     val error: String? = null
 ) {
@@ -86,6 +87,7 @@ class PlayerViewModel(
                     options = options,
                     selected = 0,
                     startPositionMs = progress.positionOf(animeId, episode),
+                    artworkUrl = cover,
                     loading = false,
                     error =
                         when {

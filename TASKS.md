@@ -100,6 +100,21 @@ ui/player    PlayerScreen · PlayerController · PlayerSurface · PlayerChrome �
 ui/settings  SettingsScreen
 ```
 
+## Round 2 (v1.2.0) — eight small fixes
+
+| # | Item | Fix |
+|---|---|---|
+| 33 | Search debounce | 400 ms debounce **and** the in-flight request is cancelled, so a slow "da" can't repaint after "dandadan" |
+| 34 | Brightness lock held after leaving | `screenBrightness = BRIGHTNESS_OVERRIDE_NONE` on stop and on leaving the player |
+| 35 | Gesture axes wrong outside fullscreen | gesture detectors are rebuilt on rotation and sensitivity uses the short screen side |
+| 36 | Weird episodes at the end of the list | `/episodes` returns specials numbered 20008+; only `kind == "regular"` is shown (falls back to all if a show has nothing else) |
+| 37 | Unreleased episodes playable | rows with a future `aired_on` are dimmed, locked, show "airs <date>", and "next episode" skips them |
+| 38 | No system media controls | added `MediaSession` + metadata (title / provider / artwork) so it appears in the notification shade |
+| 39 | Background playback | playback pauses on `ON_STOP` (no background service) |
+| 40 | Auto updates | `UpdateChecker` reads GitHub releases (daily, once per 24 h), banner on the list, "Download & install" in Settings via FileProvider |
+
+Tests: **12/12** (`LiveApiTest` 6, `PayloadTest` 1, `EpisodeRulesTest` 3, `VersionRulesTest` 2).
+
 ## Optional backlog (not requested, not blocking)
 
 - AniList/MAL sync for progress (the web app has it; the API endpoints exist).

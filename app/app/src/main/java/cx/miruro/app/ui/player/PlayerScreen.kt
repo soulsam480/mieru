@@ -31,6 +31,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cx.miruro.app.data.MiruroApi
@@ -58,6 +60,11 @@ fun PlayerScreen(
     val view = LocalView.current
 
     val controller = remember { PlayerController(context) }
+    // Surfaces the episode in the system media panel (quick settings / lock screen).
+    val mediaSession =
+        remember {
+            androidx.media3.session.MediaSession.Builder(context, controller.player).build()
+        }
     val chrome = remember { PlayerChromeState() }
     val gestures = remember { GestureController(context) }
     var isFullscreen by remember { mutableStateOf(false) }
@@ -79,14 +86,23 @@ fun PlayerScreen(
                 controller.player.duration.coerceAtLeast(0L)
             )
             view.keepScreenOn = false
+            gestures.releaseBrightness()
+            mediaSession.release()
             controller.release()
         }
     }
 
-    LaunchedEffect(state.stream, state.startPositionMs) {
+    LaunchedEffect(state.stream, state.startPositionMs, state.episode) {
         val stream = state.stream ?: return@LaunchedEffect
-        controller.open(stream, state.startPositionMs)
+        controller.open(stream, state.startPositionMs, state.mediaMetadata(animeTitle))
         chrome.visible = true
+    }
+
+    // No background playback: leaving the app pauses, and the screen brightness goes back
+    // to the system.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        controller.player.pause()
+        gestures.releaseBrightness()
     }
 
     LaunchedEffect(state.episode) {
@@ -295,4 +311,14 @@ private fun PlayPauseButton(controller: PlayerController) {
             )
         }
     }
+}
+
+/** Title / subtitle / artwork for the notification-shade media controls. */
+private fun PlayerUiState.mediaMetadata(showTitle: String): androidx.media3.common.MediaMetadata {
+    val title = if (showTitle.isBlank()) "Episode $episode" else "$showTitle · EP $episode"
+    return androidx.media3.common.MediaMetadata.Builder()
+        .setTitle(title)
+        .setArtist(stream?.provider?.let { "Miruro · $it" } ?: "Miruro")
+        .setArtworkUri(artworkUrl?.let { android.net.Uri.parse(it) })
+        .build()
 }

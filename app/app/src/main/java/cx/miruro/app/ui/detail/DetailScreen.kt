@@ -185,6 +185,7 @@ fun DetailScreen(
                         EpisodeRow(
                             episode = episode,
                             fraction = state.watched[episode.number]?.fraction,
+                            released = episode.isReleased(),
                             onClick = {
                                 onPlay(episode.number, "$title · EP ${episode.number}")
                             }

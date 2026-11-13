@@ -6,12 +6,15 @@ import cx.miruro.app.data.FranchiseStore
 import cx.miruro.app.data.MiruroApi
 import cx.miruro.app.data.ProgressStore
 import cx.miruro.app.data.StyleStore
+import cx.miruro.app.data.UpdateChecker
 import java.io.File
 
 class MiruroApp : Application() {
     lateinit var endpoints: EndpointStore
         private set
     val franchises = FranchiseStore()
+    lateinit var updates: UpdateChecker
+        private set
     lateinit var api: MiruroApi
         private set
     lateinit var progress: ProgressStore
@@ -25,5 +28,11 @@ class MiruroApp : Application() {
         api = MiruroApi(endpoints)
         progress = ProgressStore(File(filesDir, "progress.json"))
         styles = StyleStore(File(filesDir, "subtitle-style.json"))
+        updates = UpdateChecker(this)
+        updates.checkInBackground(
+            kotlinx.coroutines.CoroutineScope(
+                kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO
+            )
+        )
     }
 }

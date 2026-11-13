@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.media3.common.C
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
@@ -84,10 +85,10 @@ internal class PlayerController(context: Context) {
         player.removeListener(listener)
     }
 
-    fun open(stream: ResolvedStream, startAtMs: Long) {
+    fun open(stream: ResolvedStream, startAtMs: Long, metadata: MediaMetadata? = null) {
         lastError = null
         PlaybackDiagnostics.logSubtitles(stream)
-        player.setMediaSource(MediaSources.create(stream))
+        player.setMediaSource(MediaSources.create(stream, metadata))
         player.trackSelectionParameters =
             player.trackSelectionParameters
                 .buildUpon()

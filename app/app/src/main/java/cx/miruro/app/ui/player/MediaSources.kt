@@ -3,6 +3,7 @@ package cx.miruro.app.ui.player
 import android.net.Uri
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MimeTypes
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -20,7 +21,7 @@ import cx.miruro.app.data.Subtitle
  */
 internal object MediaSources {
 
-    fun create(stream: ResolvedStream): MediaSource {
+    fun create(stream: ResolvedStream, metadata: MediaMetadata? = null): MediaSource {
         val dataSource = DefaultHttpDataSource.Factory()
             .setUserAgent(Http.UA)
             .setDefaultRequestProperties(stream.headers)
@@ -29,6 +30,7 @@ internal object MediaSources {
         val mediaItem =
             MediaItem.Builder()
                 .setUri(stream.url)
+                .setMediaMetadata(metadata ?: MediaMetadata.EMPTY)
                 .setMimeType(
                     if (stream.isProgressive) MimeTypes.VIDEO_MP4 else MimeTypes.APPLICATION_M3U8
                 )

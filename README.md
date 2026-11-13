@@ -91,6 +91,8 @@ What it proves:
 | `seasons_are_discoverable` | `order_release` + `id_in` hydration |
 | `full_watch_chain_resolves_and_plays` | `/play` → source pick → master playlist → variant → a **real video segment** (200/206) |
 | `subtitle_files_are_real_vtt` | subtitle URLs actually return `WEBVTT` |
+| `EpisodeRulesTest` | specials (20008+) are dropped; unreleased episodes are flagged |
+| `VersionRulesTest` | dotted version comparison for the updater |
 
 Providers vary between calls, so the chain test tries sources the way the app does and only
 requires that one of them plays.

@@ -74,9 +74,21 @@ data class Episode(
     @SerialName("thumbnail_url") val thumbnailUrl: String? = null,
     @SerialName("duration_seconds") val durationSeconds: Int? = null,
     @SerialName("aired_on") val airedOn: String? = null,
-    @SerialName("skip_times") val skipTimes: List<JsonElement> = emptyList()
+    @SerialName("skip_times") val skipTimes: List<JsonElement> = emptyList(),
+    val kind: String? = null
 ) {
     val number: Int get() = episodeNumber.toInt()
+
+    /** False when the air date is still in the future (or unknown but flagged as upcoming). */
+    fun isReleased(today: java.time.LocalDate = java.time.LocalDate.now()): Boolean {
+        val date =
+            airedOn?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() }
+                ?: return true
+        return !date.isAfter(today)
+    }
+
+    fun releaseDate(): java.time.LocalDate? =
+        airedOn?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() }
 }
 
 @Serializable

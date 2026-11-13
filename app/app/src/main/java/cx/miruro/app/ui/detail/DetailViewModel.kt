@@ -23,15 +23,19 @@ data class DetailUiState(
     val loading: Boolean = true,
     val error: String? = null
 ) {
-    /** First episode that is unwatched or unfinished; falls back to the last one. */
+    val releasedEpisodes: List<Episode> get() = episodes.filter { it.isReleased() }
+
+    /** First released episode that is unwatched or unfinished; falls back to the last one. */
     fun nextEpisode(): Int {
-        if (episodes.isEmpty()) return 1
+        val available = releasedEpisodes
+        if (available.isEmpty()) return episodes.firstOrNull()?.number ?: 1
+
         val candidate =
-            episodes.firstOrNull { episode ->
+            available.firstOrNull { episode ->
                 val progress = watched[episode.number]
                 progress == null || progress.fraction < 0.9f
             }
-        return candidate?.number ?: episodes.last().number
+        return candidate?.number ?: available.last().number
     }
 }
 

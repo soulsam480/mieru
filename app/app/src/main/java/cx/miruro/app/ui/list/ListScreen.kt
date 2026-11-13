@@ -69,6 +69,7 @@ import cx.miruro.app.data.Anime
 import cx.miruro.app.data.ContinueItem
 import cx.miruro.app.data.MiruroApi
 import cx.miruro.app.data.ProgressStore
+import cx.miruro.app.data.UpdateChecker
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,11 +78,14 @@ fun ListScreen(
     progress: ProgressStore,
     onOpenAnime: (Anime) -> Unit,
     onResume: (ContinueItem) -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    updates: UpdateChecker
 ) {
     val vm: ListViewModel = viewModel { ListViewModel(api, progress) }
     val state by vm.state.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
+
+    val availableUpdate by updates.available.collectAsStateWithLifecycle()
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         vm.refreshProgress()
@@ -167,6 +171,30 @@ fun ListScreen(
                         selected = state.sort == value,
                         onClick = { vm.onSortChange(value) },
                         text = { Text(label, style = MaterialTheme.typography.labelLarge) }
+                    )
+                }
+            }
+
+            availableUpdate?.let { update ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpenSettings)
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Version ${update.version} is available",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        "Install",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
             }

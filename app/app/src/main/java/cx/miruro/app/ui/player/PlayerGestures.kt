@@ -95,6 +95,15 @@ internal class GestureController(context: Context) {
         seekFeedback = null
     }
 
+    /** Give the brightness back to the system. Leaving our override in place dims the whole app. */
+    fun releaseBrightness() {
+        val window = activity?.window ?: return
+        window.attributes =
+            window.attributes.apply {
+                screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+            }
+    }
+
     private fun adjustBrightness(deltaFraction: Float) {
         val window = activity?.window ?: return
         brightness = (brightness + deltaFraction).coerceIn(MIN_BRIGHTNESS, 1f)
@@ -118,10 +127,22 @@ internal class GestureController(context: Context) {
     }
 }
 
+@Composable
 internal fun Modifier.playerGestures(
     gestures: GestureController,
     onTap: () -> Unit,
     onDoubleTap: (ScreenZone) -> Unit
+): Modifier {
+    // Rebuild the detectors after a rotation: otherwise the zone maths keep using the old bounds.
+    val orientation = androidx.compose.ui.platform.LocalConfiguration.current.orientation
+    return playerGestureModifier(gestures, onTap, onDoubleTap, orientation)
+}
+
+private fun Modifier.playerGestureModifier(
+    gestures: GestureController,
+    onTap: () -> Unit,
+    onDoubleTap: (ScreenZone) -> Unit,
+    orientationKey: Int
 ): Modifier = this
     .pointerInput(Unit) {
         detectVerticalDragGestures(
@@ -130,7 +151,9 @@ internal fun Modifier.playerGestures(
             onDragCancel = { gestures.endDrag() }
         ) { change, dragAmount ->
             change.consume()
-            gestures.drag(-dragAmount / size.height.toFloat())
+            // Use the short side so the gesture feels the same in portrait and landscape.
+            val span = minOf(size.width, size.height).toFloat().coerceAtLeast(1f)
+            gestures.drag(-dragAmount / span)
         }
     }
     .pointerInput(Unit) {

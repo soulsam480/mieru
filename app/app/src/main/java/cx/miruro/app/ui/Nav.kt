@@ -28,6 +28,7 @@ fun MiruroNavHost(app: MiruroApp) {
                 api = app.api,
                 progress = app.progress,
                 onOpenSettings = { nav.navigate(ROUTE_SETTINGS) },
+                updates = app.updates,
                 onOpenAnime = { anime ->
                     nav.navigate("detail/${anime.id}?title=${Uri.encode(anime.title.best())}")
                 },
@@ -43,6 +44,7 @@ fun MiruroNavHost(app: MiruroApp) {
             SettingsScreen(
                 api = app.api,
                 endpoints = app.endpoints,
+                updates = app.updates,
                 onBack = { nav.popBackStack() }
             )
         }

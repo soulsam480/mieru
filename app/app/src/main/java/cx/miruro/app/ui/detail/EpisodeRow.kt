@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -21,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -31,12 +33,18 @@ import coil3.compose.AsyncImage
 import cx.miruro.app.data.Episode
 
 @Composable
-internal fun EpisodeRow(episode: Episode, fraction: Float?, onClick: () -> Unit) {
+internal fun EpisodeRow(
+    episode: Episode,
+    fraction: Float?,
+    released: Boolean,
+    onClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .clickable(enabled = released, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .alpha(if (released) 1f else 0.4f),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -78,10 +86,15 @@ internal fun EpisodeRow(episode: Episode, fraction: Float?, onClick: () -> Unit)
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            val sub = buildList {
-                episode.airedOn?.let { add(it) }
-                episode.durationSeconds?.let { add("${it / 60} min") }
-            }.joinToString(" · ")
+            val sub =
+                if (!released) {
+                    "airs ${episode.releaseDate() ?: "soon"}"
+                } else {
+                    buildList {
+                        episode.airedOn?.let { add(it) }
+                        episode.durationSeconds?.let { add("${it / 60} min") }
+                    }.joinToString(" · ")
+                }
             if (sub.isNotEmpty()) {
                 Text(
                     sub,
@@ -103,7 +116,7 @@ internal fun EpisodeRow(episode: Episode, fraction: Float?, onClick: () -> Unit)
         }
 
         Icon(
-            Icons.Filled.PlayArrow,
+            if (released) Icons.Filled.PlayArrow else Icons.Filled.Lock,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )

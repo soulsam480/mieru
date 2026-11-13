@@ -33,6 +33,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cx.miruro.app.data.EndpointStore
 import cx.miruro.app.data.MiruroApi
+import cx.miruro.app.data.UpdateChecker
+import cx.miruro.app.data.UpdateInfo
 import kotlinx.coroutines.launch
 
 /**
@@ -41,10 +43,18 @@ import kotlinx.coroutines.launch
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(api: MiruroApi, endpoints: EndpointStore, onBack: () -> Unit) {
+fun SettingsScreen(
+    api: MiruroApi,
+    endpoints: EndpointStore,
+    updates: UpdateChecker,
+    onBack: () -> Unit
+) {
     var draft by remember { mutableStateOf(endpoints.baseUrl()) }
     var checking by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf<String?>(null) }
+    var updateStatus by remember { mutableStateOf<String?>(null) }
+    var pendingUpdate by remember { mutableStateOf<UpdateInfo?>(null) }
+    var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -125,6 +135,67 @@ fun SettingsScreen(api: MiruroApi, endpoints: EndpointStore, onBack: () -> Unit)
             }
 
             status?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall)
+            }
+
+            Spacer(Modifier.height(20.dp))
+            Text(
+                "Updates",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                "Installed version ${updates.installedVersion}. This app is not on a store — it " +
+                    "updates itself from this project's GitHub releases.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            busy = true
+                            updateStatus = "Checking…"
+                            updates.check()
+                                .onSuccess { info ->
+                                    pendingUpdate = info
+                                    updateStatus =
+                                        info?.let { "Version ${it.version} is available" }
+                                            ?: "You are on the latest version"
+                                }
+                                .onFailure { updateStatus = "Check failed: ${it.message}" }
+                            busy = false
+                        }
+                    },
+                    enabled = !busy
+                ) {
+                    Text("Check for updates")
+                }
+
+                pendingUpdate?.let { info ->
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                busy = true
+                                updateStatus = "Downloading ${info.version}…"
+                                runCatching {
+                                    val apk = updates.download(info)
+                                    updates.install(apk)
+                                    "Downloaded — confirm the install prompt"
+                                }.onSuccess { updateStatus = it }
+                                    .onFailure { updateStatus = "Download failed: ${it.message}" }
+                                busy = false
+                            }
+                        },
+                        enabled = !busy
+                    ) {
+                        Text("Download & install")
+                    }
+                }
+            }
+
+            updateStatus?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall)
             }
 

@@ -56,6 +56,7 @@ class ListViewModel(private val api: MiruroApi, private val progress: ProgressSt
     private var cursor: String? = null
     private var endpointRevision = api.revision()
     private var searchJob: Job? = null
+    private var loadJob: Job? = null
 
     init {
         load(reset = true)
@@ -75,9 +76,17 @@ class ListViewModel(private val api: MiruroApi, private val progress: ProgressSt
         }
     }
 
+    /**
+     * Typing is debounced, and any request already in flight is cancelled: otherwise a slow
+     * response for "da" can land after "dandadan" and repaint the grid with the wrong results.
+     */
     fun onQueryChange(value: String) {
+        if (value == _state.value.query) return
         _state.update { it.copy(query = value) }
+
         searchJob?.cancel()
+        loadJob?.cancel()
+
         searchJob =
             viewModelScope.launch {
                 delay(SEARCH_DEBOUNCE_MILLIS)
@@ -111,31 +120,33 @@ class ListViewModel(private val api: MiruroApi, private val progress: ProgressSt
 
         _state.update { it.copy(loading = reset, loadingMore = !reset, error = null) }
 
-        viewModelScope.launch {
-            runCatching { feedFor(snapshot, reset) }
-                .onSuccess { feed ->
-                    cursor = feed.page.nextCursor
-                    _state.update {
-                        it.copy(
-                            items = if (reset) feed.page.data else it.items + feed.page.data,
-                            airings = feed.airings,
-                            hasMore = feed.page.hasMore && feed.page.nextCursor != null,
-                            loading = false,
-                            loadingMore = false,
-                            error = null
-                        )
+        loadJob?.cancel()
+        loadJob =
+            viewModelScope.launch {
+                runCatching { feedFor(snapshot, reset) }
+                    .onSuccess { feed ->
+                        cursor = feed.page.nextCursor
+                        _state.update {
+                            it.copy(
+                                items = if (reset) feed.page.data else it.items + feed.page.data,
+                                airings = feed.airings,
+                                hasMore = feed.page.hasMore && feed.page.nextCursor != null,
+                                loading = false,
+                                loadingMore = false,
+                                error = null
+                            )
+                        }
                     }
-                }
-                .onFailure { error ->
-                    _state.update {
-                        it.copy(
-                            loading = false,
-                            loadingMore = false,
-                            error = error.message ?: error.javaClass.simpleName
-                        )
+                    .onFailure { error ->
+                        _state.update {
+                            it.copy(
+                                loading = false,
+                                loadingMore = false,
+                                error = error.message ?: error.javaClass.simpleName
+                            )
+                        }
                     }
-                }
-        }
+            }
     }
 
     private suspend fun feedFor(snapshot: ListUiState, reset: Boolean): Feed =
@@ -186,6 +197,6 @@ class ListViewModel(private val api: MiruroApi, private val progress: ProgressSt
     private companion object {
         const val PAGE_SIZE = 15
         const val FALLBACK_SORT = "-popularity"
-        const val SEARCH_DEBOUNCE_MILLIS = 350L
+        const val SEARCH_DEBOUNCE_MILLIS = 400L
     }
 }
