@@ -42,6 +42,17 @@ Three screens: **browse → episodes → watch**, plus local watch progress.
 - Per-episode position, saved locally, survives process death
 - “Continue watching” row on the home screen
 
+**System integration**
+- Media controls in the notification shade / lock screen (MediaSession)
+- Pauses when the app goes to the background; brightness is handed back to the system on exit
+- Unreleased episodes are locked and show their air date
+
+**Updates**
+- Self-updating from GitHub releases: a daily check, a banner on the home screen, and
+  “Download & install” in Settings
+- No account needed while this repository is public. If it is ever private, paste a read-only
+  GitHub token in Settings and the updater uses it.
+
 ## Install
 
 Grab `app-release.apk` from the [latest release](../../releases/latest):
