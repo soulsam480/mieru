@@ -41,7 +41,7 @@ curl -sS -D - -o /dev/null --http2 "https://site.tld/api/v1/x"      # status + h
 Read `content-type` first: `application/octet-stream` on a JSON-shaped endpoint means an encoded
 payload; `text/html` on an API path means a WAF or an error page, not an empty result. When curl
 cannot reproduce a request (CORS, cookies, a challenge), fetch it **inside the page** and write
-base64 to disk — `recon/fetch_one.sh` does that with `playwright-cli eval` + `fetch` + `btoa`, which
+base64 to disk — the captured notes does that with `playwright-cli eval` + `fetch` + `btoa`, which
 is how the 396 762-byte entry chunk and 74 lazy chunks were captured.
 
 ## Step 2: get the client code (download bundles, unminify mentally, grep)
@@ -65,7 +65,7 @@ Four shapes cover everything seen so far. Recipes: `references/payload-encoding.
 
 ## Step 4: find the auth/edge requirements
 
-Bisect with a throwaway helper; `recon/matrix.sh` is the same shape applied to query params:
+Bisect with a throwaway helper; the captured notes is the same shape applied to query params:
 
 ```bash
 t(){ printf "%-46s " "$1"; shift; curl -s -o /dev/null -w "%{http_code}\n" --http2 "$@" "$URL"; }
@@ -88,7 +88,7 @@ just works, and bump a revision on change so screens reload (`EndpointStore`).
 | HTTP 200 with `{"status":500,"result":"Bad request"}` | app-level header gate (`X-Requested-With`) | add it | yes |
 | `403` + 4561 B `Attention Required!` HTML, only on the **media** host | hotlink/WAF rule | add `Referer`/`Origin` | yes |
 
-The last row is `recon/seg0.bin`: a Cloudflare block page where a JPEG should be.
+The last row is the captured notes: a Cloudflare block page where a JPEG should be.
 
 ## Step 5: resolve media
 
@@ -110,7 +110,7 @@ curl -s -o /dev/null -w "with=%{http_code}\n"    -H "referer: $REF" -H "origin: 
 curl -s -o /dev/null -w "without=%{http_code}\n" -H "referer: $REF" "$SEG"
 ```
 
-`recon/verify_e2e.sh` prints this eight-step chain end to end. Then port it to a live unit test: an
+the captured notes prints this eight-step chain end to end. Then port it to a live unit test: an
 offline `PayloadTest` over a checked-in real response (`src/test/resources/play.bin`), live tests
 asserting `#EXTM3U`, `#EXT-X-STREAM-INF`, `#EXTINF`, a segment returning `200`/`206` with bytes, and
 a subtitle body containing `WEBVTT`. **Try several sources** — providers change between calls. Never

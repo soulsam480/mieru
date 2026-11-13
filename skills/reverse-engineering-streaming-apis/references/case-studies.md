@@ -15,7 +15,7 @@ downloaded bundles. Numbers are measured, not estimated.
 ## 1. Miruro — the one we shipped
 
 **What it took.** Downloaded the production bundle instead of instrumenting a browser: entry chunk
-`index-DyxIBWZg.js` = 396 762 bytes on 234 physical lines, plus 74 lazy chunks (`recon/assets/`).
+`index-DyxIBWZg.js` = 396 762 bytes on 234 physical lines, plus 74 lazy chunks (the captured notes).
 Everything came from reading it; no network capture was needed to find the API.
 
 **Numbers.**
@@ -34,7 +34,7 @@ Everything came from reading it; no network capture was needed to find the API.
   `#EXTINF:6.006011`; segment host differs from playlist host
   (`hls.krussdomi.com` → `st1.advancedairesearchlab.xyz`), segments named `.jpg`.
 - Segment CDN: `Referer` + `Origin` → `200`; `Referer` only → `403` with a 4561-byte
-  `Attention Required! | Cloudflare` page (`recon/seg0.bin`). Subtitle `.vtt` → `200`, ~20 KB.
+  `Attention Required! | Cloudflare` page (the captured notes). Subtitle `.vtt` → `200`, ~20 KB.
 - Progress is localStorage-only; there is no `/progress` or `/sync` endpoint — which is why a
   native client can track watch time locally with no account.
 
@@ -53,8 +53,8 @@ Everything came from reading it; no network capture was needed to find the API.
    bug in the view model's error branch, not a network problem. Worth remembering when a symptom
    contradicts the logs.
 
-**Outcome:** one backend, three screens, no WebView, no server. `recon/API-NOTES.md` (889 lines)
-is the contract; `recon/probe.py` is the reference client; `recon/verify_e2e.sh` proves the chain.
+**Outcome:** one backend, three screens, no WebView, no server. the captured notes (889 lines)
+is the contract; the captured notes is the reference client; the captured notes proves the chain.
 
 ---
 
@@ -108,7 +108,7 @@ item; the AES key is the only part people worry about.
   16 bytes, same `?token=` as the playlist; plaintext starts `47 40 11 10` (MPEG-TS sync).
 - Rate limits were not the issue: 12 sequential search + 10 `/api/flix` calls ~0.3 s apart all 200.
 
-**What worked:** `recon/sources/flix/decrypt.mjs` executes the real wasm and prints a decrypted
+**What worked:** the captured notes executes the real wasm and prints a decrypted
 master URL (with a 1920x1080 rendition) every run. No guesswork, no reimplementation of `_s/_r/_c`.
 
 **What did not:** anything stable. Field names change per load, the bootstrap token is one-shot,
@@ -154,4 +154,4 @@ being a solver service or a `cf_clearance` farm, i.e. the relay the project deci
    time, and make the API base a user-editable setting.
 5. **Keep one extension point.** Every alternate maps onto the same `ResolvedStream { url,
    mimeHint, headers, subtitles, provider, server }`; adding a backend is one resolver, no UI change
-   (`recon/sources/README.md`). Two of the three are still worth adding if the primary dies.
+   (the captured notes). Two of the three are still worth adding if the primary dies.

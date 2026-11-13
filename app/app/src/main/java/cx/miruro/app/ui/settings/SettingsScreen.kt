@@ -147,7 +147,7 @@ fun SettingsScreen(
             )
             Text(
                 "Installed version ${updates.installedVersion}. Not on a store — it updates " +
-                    "itself from this project's GitHub releases.",
+                    "itself from this project's public GitHub releases. No account needed.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -156,8 +156,8 @@ fun SettingsScreen(
                 value = tokenDraft,
                 onValueChange = { tokenDraft = it },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("GitHub token (private repo)") },
-                placeholder = { Text("ghp_… or github_pat_…") },
+                label = { Text("GitHub token (optional)") },
+                placeholder = { Text("only needed for a private repo") },
                 singleLine = true,
                 visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
             )

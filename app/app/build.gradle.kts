@@ -34,8 +34,8 @@ android {
         applicationId = "cx.miruro.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 4
+        versionName = "1.2.1"
     }
 
     signingConfigs {
@@ -51,6 +51,8 @@ android {
 
     buildTypes {
         debug {
+            // Coexists with the release build so testing never touches the installed app.
+            applicationIdSuffix = ".debug"
             isMinifyEnabled = false
         }
         release {

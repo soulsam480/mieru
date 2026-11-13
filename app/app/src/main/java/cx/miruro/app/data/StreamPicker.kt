@@ -9,8 +9,7 @@ data class StreamOption(val track: String, val label: String, val stream: Resolv
  * Turns a `/play` response into the list of sources ExoPlayer can open.
  *
  * The response is already provider → server → stream, so adding another backend later means
- * adding a resolver that produces a [StreamOption] — no UI changes. (See the per-site reports
- * in recon/sources for the other backends that were evaluated.)
+ * adding a resolver that produces a [StreamOption] — no UI changes.
  */
 object StreamPicker {
     /** Providers in the order we prefer them. Unknown providers go last but are still tried. */

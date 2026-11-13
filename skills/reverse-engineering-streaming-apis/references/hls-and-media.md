@@ -37,7 +37,7 @@ val origin  = referer?.let { URI(it).let { u -> "${u.scheme}://${u.authority}" }
 val headers = server.headers + mapOf("Origin" to origin)
 ```
 
-Verified on miruro (`recon/verify_e2e.sh`, steps 5–8):
+Verified on miruro (the captured notes, steps 5–8):
 
 ```
 stream  = https://hls.krussdomi.com/manifest/<id>/master.m3u8
@@ -49,7 +49,7 @@ segment (Referer + Origin)                200
 segment (Referer, no Origin)              403  text/html 4561 B
 ```
 
-That 4561-byte body is `<title>Attention Required! | Cloudflare</title>` — `recon/seg0.bin`. It is
+That 4561-byte body is `<title>Attention Required! | Cloudflare</title>` — the captured notes. It is
 a WAF rule, not a missing file: the URL is correct and one header flips it. This is the single most
 common "plays in the browser, not in the app" cause, and it is worth a control request in your test
 suite so a future refactor cannot silently drop `Origin`.

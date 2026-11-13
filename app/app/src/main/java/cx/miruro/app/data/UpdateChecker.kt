@@ -152,7 +152,7 @@ class UpdateChecker(private val context: Context) {
     }
 
     private companion object {
-        const val API = "https://api.github.com/repos/soulsam480/mireru/releases"
+        const val API = "https://api.github.com/repos/soulsam480/mieru/releases"
         const val ONE_DAY_MILLIS = 24L * 60 * 60 * 1000
     }
 }

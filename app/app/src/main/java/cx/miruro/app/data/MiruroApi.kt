@@ -131,11 +131,20 @@ class MiruroApi(private val endpoints: EndpointStore = EndpointStore.inMemory())
             .distinctBy { it.animeId }
     }
 
-    suspend fun episodes(animeId: String): EpisodesEnvelope = get(
-        "/api/v1/anime/$animeId/episodes",
-        EpisodesEnvelope.serializer(),
-        mapOf("limit" to "10000")
-    )
+    /**
+     * The endpoint returns every entry of the season, including specials whose episode numbers are
+     * synthetic (20008, 20009…). They are not part of the run, so they are dropped — unless the
+     * show has nothing else, in which case everything is kept.
+     */
+    suspend fun episodes(animeId: String): EpisodesEnvelope {
+        val envelope =
+            get(
+                "/api/v1/anime/$animeId/episodes",
+                EpisodesEnvelope.serializer(),
+                mapOf("limit" to "10000")
+            )
+        return envelope.copy(data = regularEpisodes(envelope.data))
+    }
 
     suspend fun play(animeId: String, episode: Int): PlayEnvelope = get(
         "/api/v1/anime/$animeId/episodes/$episode/play",

@@ -13,16 +13,17 @@ ends with a verification step you must actually run.
 * **No emulator, no system image.** Test on a physical Android phone with `adb`. This alone saves
   ~2 GB.
 * Build with the Gradle wrapper: `./gradlew assembleDebug`. Android Studio is not needed.
-* All shell work happens in `/Users/sambitsahoo/projects/miruro/app` (to be created).
-* Reference client for every endpoint: `recon/probe.py` (already works — run it first, it proves
-  the API is reachable from this machine before you write any Kotlin).
+* All shell work happens in `/Users/sambitsahoo/projects/mieru/app` (to be created).
+* Before writing Kotlin, prove the API is reachable from your machine with a two-line curl that
+  sends `Sec-Fetch-Site: same-origin` plus a `Referer`, and confirm the body starts with `0x1f 0x8b`
+  after un-XORing.
 
 ---
 
 ## T0 — Toolchain (mise, ~900 MB total, additive)
 
 ```bash
-cd /Users/sambitsahoo/projects/miruro
+cd /Users/sambitsahoo/projects/mieru
 mise use -g java@21.0.13+9.0.LTS
 mise use -g gradle@9.7.0
 mise use -g kotlin@2.4.21
@@ -134,7 +135,7 @@ suspend fun play(id: String, episode: Int): PlayEnvelope
 
 Verification (must be a real test, not a print):
 `app/src/test/kotlin/.../MiruroApiTest.kt` — decode a checked-in `play.bin`
-(`recon/play.bin`, 3.4 KB) and assert the JSON contains `"providers"` and a URL starting with
+(a small binary captured once from the live API) and assert the JSON contains `"providers"` and a URL starting with
 `https://`. Then one `@Ignore`d live test you can run by hand against the real host.
 
 ## T3 — List screen (feature 1)
@@ -257,8 +258,5 @@ Allowed values:
                Supernatural Thriller
 ```
 
-Sanity check any of this from the shell before coding:
-
-```bash
-python3 recon/probe.py "/api/v1/anime?limit=15&sort=-popularity&q=dandadan" 1
-```
+Sanity check any of this from the shell before coding: call the same URL with `curl --http2`,
+the two headers above, and decode the body with the XOR+gzip key.

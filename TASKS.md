@@ -19,7 +19,7 @@ Last updated: 2026-11-13 (final)
 | 1 | Explore miruro.cx with the playwright skill | DONE — API reverse-engineered end to end |
 | 2 | Can it be an Android app? | DONE — yes; design + plan written |
 | 3 | Native, fast, 3 features: browse / watch / track time | DONE — all three working on device |
-| 4 | Research the top sites from everythingmoe | DONE — `recon/sources/{REANIME,ANIKOTO,ANIMEPAHE}.md` |
+| 4 | Research the top sites from everythingmoe | DONE — notes kept outside the repo, distilled into the skill |
 | 5 | Keep that research for later selectable providers | DONE — `StreamPicker`/`StreamOption` seam |
 | 6 | Low storage: don't install junk, don't delete | HELD — mise + 3 SDK packages only |
 | 7 | Use mise for versions | DONE — java 21.0.13, gradle 9.7.0, android-sdk 23.0 |
@@ -47,7 +47,7 @@ Last updated: 2026-11-13 (final)
 | 29 | Keep code clean | DONE — screens split by responsibility; largest file 506 → see §Layout |
 | 30 | Keep a tracker of requests | DONE — this file |
 | 31 | Sign the app ourselves | DONE — self-signed RSA-4096, v2 scheme verified |
-| 32 | Initialise a git repo with a proper .gitignore | DONE — 53 files, no secrets, no `recon/`, no APKs |
+| 32 | Initialise a git repo with a proper .gitignore | DONE — 53 files, no secrets, no the captured notes, no APKs |
 
 ## Bugs found and fixed along the way
 
@@ -123,5 +123,5 @@ Tests: **12/12** (`LiveApiTest` 6, `PayloadTest` 1, `EpisodeRulesTest` 3, `Versi
 
 - AniList/MAL sync for progress (the web app has it; the API endpoints exist).
 - Downloads / offline playback.
-- Provider #2 (Anikoto is the cheapest to add — one AES step; see `recon/sources/ANIKOTO.md`).
+- Provider #2 (Anikoto is the cheapest to add — one AES step).
 - Landscape pillarbox-aware subtitle offset (currently based on letterbox height only).

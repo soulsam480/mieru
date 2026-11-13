@@ -1,4 +1,9 @@
-# Miruro — native Android client
+# Mieru — a native Android client
+
+> **This project hosts no content.** It is a client that talks to a third-party API you configure.
+> No media, no catalogue, no streams are bundled, mirrored, or served from here — nothing is
+> hosted, re-uploaded, or proxied by this repository or its releases. Point it at whatever server
+> you are entitled to use; the base URL is a setting.
 
 A small, fast Android app for a Miruro-compatible anime API. Kotlin, Jetpack Compose
 (Material 3), Media3/ExoPlayer. No WebView, no embedded browser, no JS engine.

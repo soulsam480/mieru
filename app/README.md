@@ -60,6 +60,4 @@ thing to check — the CDN rejects requests that carry `Referer` alone.
 ## Where the API contract lives
 
 `docs/specs/2026-11-13-miruro-native-android-design.md` (why) and
-`docs/plans/2026-11-13-miruro-native-android-plan.md` (how, task by task). The full reverse
-engineered contract is in `recon/API-NOTES.md`, and the alternative backends that were evaluated
-for later use are in `recon/sources/`.
+`docs/plans/2026-11-13-miruro-native-android-plan.md` (how, task by task).

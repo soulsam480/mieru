@@ -2,7 +2,7 @@
 
 Date: 2026-11-13
 Status: proposed, awaiting approval
-Author: recon session
+Author: implementation session
 
 ## 1. Intent
 
@@ -222,8 +222,8 @@ Stream selection: first `server.streams` entry whose `format == "hls"` (fall bac
 request headers = `server.headers` + `Origin` = scheme+host of that `Referer`; if no direct stream,
 skip the server (never use `embed`).
 
-A working reference client is already in this repo: `recon/probe.py` (curl-based, HTTP/2, decodes
-the payload, prints JSON).
+A working reference client is three commands in a shell: `curl --http2` with the two headers
+above, strip the XOR key, gunzip, and you have JSON.
 
 ## 9. Milestones
 

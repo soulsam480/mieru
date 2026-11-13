@@ -80,7 +80,7 @@ That is the entire proxy scheme — no signature, no timestamp, no header. See
 
 **Trap:** if you gunzip before un-XORing (or with the wrong key) the error is `not in gzip format`.
 That message tells you nothing about which of the two steps is wrong. Always assert the magic
-bytes *after* the XOR and print 24 hex bytes on failure — `recon/probe.py` does exactly this and
+bytes *after* the XOR and print 24 hex bytes on failure — the captured notes does exactly this and
 returns `<not gzip: …>` instead of raising.
 
 ---
@@ -176,7 +176,7 @@ Consequences that decide feasibility:
   playback**, and re-resolution must happen from the same egress IP.
 - `metadata.version:"2.1"` is a version field on the *obfuscation*: assume it will move.
 
-A working port exists as `recon/sources/flix/decrypt.mjs` — it instantiates the real wasm rather
+A working port exists as the captured notes — it instantiates the real wasm rather
 than reimplementing `_s/_r/_c`, and prints a decrypted 1080p master URL every run.
 
 ---
