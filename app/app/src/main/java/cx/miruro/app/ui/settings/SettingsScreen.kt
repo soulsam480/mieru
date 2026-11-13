@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
@@ -37,10 +40,7 @@ import cx.miruro.app.data.UpdateChecker
 import cx.miruro.app.data.UpdateInfo
 import kotlinx.coroutines.launch
 
-/**
- * The API host is the one thing that can vanish overnight. Keep it editable, keep a reset,
- * and let people verify it before leaving the screen.
- */
+/** Two things only: which server to talk to, and how the app updates itself. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -49,13 +49,14 @@ fun SettingsScreen(
     updates: UpdateChecker,
     onBack: () -> Unit
 ) {
-    var draft by remember { mutableStateOf(endpoints.baseUrl()) }
-    var checking by remember { mutableStateOf(false) }
-    var status by remember { mutableStateOf<String?>(null) }
+    var serverDraft by remember { mutableStateOf(endpoints.baseUrl()) }
+    var serverStatus by remember { mutableStateOf<String?>(null) }
+    var serverBusy by remember { mutableStateOf(false) }
+
     var updateStatus by remember { mutableStateOf<String?>(null) }
     var pendingUpdate by remember { mutableStateOf<UpdateInfo?>(null) }
-    var busy by remember { mutableStateOf(false) }
-    var tokenDraft by remember { mutableStateOf(updates.token.orEmpty()) }
+    var updateBusy by remember { mutableStateOf(false) }
+
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -79,26 +80,21 @@ fun SettingsScreen(
                 Modifier
                     .fillMaxSize()
                     .padding(padding)
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(
-                "API server",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                "The app talks to a Miruro-compatible server. If the site moves or goes down, " +
-                    "put a working host here — mirrors work as long as they serve the same API.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            SectionTitle("API server")
+            Hint(
+                "Miruro-compatible server. If it moves or goes down, put a working host here — " +
+                    "mirrors work as long as they serve the same API."
             )
 
             OutlinedTextField(
-                value = draft,
+                value = serverDraft,
                 onValueChange = {
-                    draft = it
-                    status = null
+                    serverDraft = it
+                    serverStatus = null
                 },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Base URL") },
@@ -110,89 +106,49 @@ fun SettingsScreen(
                 Button(
                     onClick = {
                         scope.launch {
-                            checking = true
-                            endpoints.save(draft)
-                            draft = endpoints.baseUrl()
-                            status = if (api.health()) "Reachable" else "No answer from /health"
-                            checking = false
+                            serverBusy = true
+                            endpoints.save(serverDraft)
+                            serverDraft = endpoints.baseUrl()
+                            serverStatus =
+                                if (api.health()) "Reachable" else "No answer from /health"
+                            serverBusy = false
                         }
                     },
-                    enabled = !checking
+                    enabled = !serverBusy
                 ) {
                     Text("Save & test")
                 }
                 TextButton(
                     onClick = {
                         endpoints.reset()
-                        draft = endpoints.baseUrl()
-                        status = null
+                        serverDraft = endpoints.baseUrl()
+                        serverStatus = null
                     }
                 ) {
                     Text("Reset to default")
                 }
-                if (checking) {
-                    CircularProgressIndicator(Modifier.height(20.dp), strokeWidth = 2.dp)
+                if (serverBusy) {
+                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                 }
             }
 
-            status?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall)
-            }
+            serverStatus?.let { Hint(it) }
 
-            Spacer(Modifier.height(20.dp))
-            Text(
-                "Updates",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+            Spacer(Modifier.height(14.dp))
+            SectionTitle("Updates")
+            Hint(
+                "Installed ${updates.installedVersion}. Not on a store — it updates itself from " +
+                    "this project's GitHub releases."
             )
-            Text(
-                "Installed version ${updates.installedVersion}. Not on a store — it updates " +
-                    "itself from this project's public GitHub releases. No account needed.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            OutlinedTextField(
-                value = tokenDraft,
-                onValueChange = { tokenDraft = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("GitHub token (optional)") },
-                placeholder = { Text("only needed for a private repo") },
-                singleLine = true,
-                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = {
-                        updates.saveToken(tokenDraft)
-                        updateStatus =
-                            if (updates.isPrivateRepo) {
-                                "Token cleared"
-                            } else {
-                                "Token saved"
-                            }
-                    }
-                ) {
-                    Text("Save token")
-                }
-                TextButton(
-                    onClick = {
-                        tokenDraft = ""
-                        updates.saveToken(null)
-                        updateStatus = "Token cleared"
-                    }
-                ) {
-                    Text("Clear")
-                }
-            }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = {
                         scope.launch {
-                            busy = true
+                            updateBusy = true
                             updateStatus = "Checking…"
-                            updates.check()
+                            updates
+                                .check()
                                 .onSuccess { info ->
                                     pendingUpdate = info
                                     updateStatus =
@@ -200,10 +156,10 @@ fun SettingsScreen(
                                             ?: "You are on the latest version"
                                 }
                                 .onFailure { updateStatus = "Check failed: ${it.message}" }
-                            busy = false
+                            updateBusy = false
                         }
                     },
-                    enabled = !busy
+                    enabled = !updateBusy
                 ) {
                     Text("Check for updates")
                 }
@@ -212,40 +168,53 @@ fun SettingsScreen(
                     Button(
                         onClick = {
                             scope.launch {
-                                busy = true
+                                updateBusy = true
                                 updateStatus = "Downloading ${info.version}…"
                                 runCatching {
                                     val apk = updates.download(info)
                                     updates.install(apk)
                                     "Downloaded — confirm the install prompt"
-                                }.onSuccess { updateStatus = it }
+                                }
+                                    .onSuccess { updateStatus = it }
                                     .onFailure { updateStatus = "Download failed: ${it.message}" }
-                                busy = false
+                                updateBusy = false
                             }
                         },
-                        enabled = !busy
+                        enabled = !updateBusy
                     ) {
                         Text("Download & install")
                     }
                 }
             }
 
-            updateStatus?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall)
-            }
+            updateStatus?.let { Hint(it) }
 
             Spacer(Modifier.height(8.dp))
             Text(
-                "Default: ${EndpointStore.DEFAULT_BASE_URL}",
+                "Default server: ${EndpointStore.DEFAULT_BASE_URL}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                "Changing this reloads the catalogue. Watch progress is stored on the device and " +
-                    "is not affected.",
+                "Watch progress is stored on this device and is not affected by changing servers.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Spacer(Modifier.height(24.dp))
         }
     }
+}
+
+@Composable
+private fun SectionTitle(text: String) {
+    Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+}
+
+@Composable
+private fun Hint(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }

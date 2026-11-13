@@ -64,22 +64,6 @@ class UpdateChecker(private val context: Context) {
             .readTimeout(20, TimeUnit.SECONDS)
             .build()
 
-    private val tokenFile = File(context.filesDir, "github-token.txt")
-
-    /** Optional GitHub token: required while the repository is private. */
-    var token: String? = tokenFile.takeIf { it.exists() }?.readText()?.trim()?.ifBlank { null }
-        private set
-
-    fun saveToken(value: String?) {
-        val cleaned = value?.trim()?.ifBlank { null }
-        token = cleaned
-        runCatching {
-            if (cleaned == null) tokenFile.delete() else tokenFile.writeText(cleaned)
-        }
-    }
-
-    val isPrivateRepo: Boolean get() = token.isNullOrBlank()
-
     val installedVersion: String
         get() =
             runCatching {
@@ -92,15 +76,12 @@ class UpdateChecker(private val context: Context) {
                 Request.Builder()
                     .url("$API/latest")
                     .header("Accept", "application/vnd.github+json")
-                    .header("User-Agent", "MiruroClient")
-                    .apply { token?.let { header("Authorization", "Bearer $it") } }
+                    .header("User-Agent", "Mieru")
                     .build()
 
             http.newCall(request).execute().use { response ->
-                if (response.code == 404 && token.isNullOrBlank()) {
-                    throw IllegalStateException(
-                        "Repository is private — add a GitHub token in Settings"
-                    )
+                if (response.code == 404) {
+                    throw IllegalStateException("No published release found")
                 }
                 if (!response.isSuccessful) {
                     throw IllegalStateException("GitHub answered ${response.code}")

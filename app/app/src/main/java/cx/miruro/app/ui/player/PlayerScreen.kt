@@ -318,7 +318,7 @@ private fun PlayerUiState.mediaMetadata(showTitle: String): androidx.media3.comm
     val title = if (showTitle.isBlank()) "Episode $episode" else "$showTitle · EP $episode"
     return androidx.media3.common.MediaMetadata.Builder()
         .setTitle(title)
-        .setArtist(stream?.provider?.let { "Miruro · $it" } ?: "Miruro")
+        .setArtist(stream?.provider?.let { "Mieru · $it" } ?: "Mieru")
         .setArtworkUri(artworkUrl?.let { android.net.Uri.parse(it) })
         .build()
 }

@@ -114,12 +114,12 @@ fun ListScreen(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            "MIRURO",
+                            "MIERU",
                             fontWeight = FontWeight.Black,
                             style = MaterialTheme.typography.titleLarge
                         )
                         Text(
-                            ".tv",
+                            ".app",
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Black
