@@ -13,7 +13,7 @@ ends with a verification step you must actually run.
 * **No emulator, no system image.** Test on a physical Android phone with `adb`. This alone saves
   ~2 GB.
 * Build with the Gradle wrapper: `./gradlew assembleDebug`. Android Studio is not needed.
-* All shell work happens in `/Users/sambitsahoo/projects/mieru/app` (to be created).
+* All shell work happens in `<project>/app`.
 * Before writing Kotlin, prove the API is reachable from your machine with a two-line curl that
   sends `Sec-Fetch-Site: same-origin` plus a `Referer`, and confirm the body starts with `0x1f 0x8b`
   after un-XORing.
@@ -23,7 +23,7 @@ ends with a verification step you must actually run.
 ## T0 — Toolchain (mise, ~900 MB total, additive)
 
 ```bash
-cd /Users/sambitsahoo/projects/mieru
+cd <project>
 mise use -g java@21.0.13+9.0.LTS
 mise use -g gradle@9.7.0
 mise use -g kotlin@2.4.21
