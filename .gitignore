@@ -1,0 +1,65 @@
+# ---- Android / Gradle ----
+build/
+.gradle/
+.kotlin/
+captures/
+*.apk
+*.aab
+*.ap_
+*.dex
+local.properties
+app/local.properties
+lint-results*.xml
+/release/
+.idea/
+*.iml
+app/build/
+
+# ---- Kotlin ----
+*.hprof
+.kotlin/
+
+# ---- Signing / secrets ----
+*.jks
+*.keystore
+keystore.properties
+.env
+.env.*
+secrets.properties
+
+# ---- Playwright CLI scratch ----
+.playwright-cli/
+playwright-report/
+test-results/
+
+# ---- OS / editors ----
+.DS_Store
+._*
+Thumbs.db
+*.swp
+*~
+.vscode/
+.zed/
+
+# ---- Python (recon helpers) ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ---- Reverse-engineering workspace (kept locally, not in git) ----
+recon/
+
+# ---- Large reverse-engineering artefacts ----
+# Downloaded bundles and captured payloads stay on disk but not in git history.
+recon/assets/
+recon/node_modules/
+recon/*.bin
+recon/*.b64
+recon/*_b64.txt
+recon/t1.bin
+recon/seg*.bin
+
+# scratch
+batch1.txt
+recon
