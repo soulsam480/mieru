@@ -55,6 +55,7 @@ fun SettingsScreen(
     var updateStatus by remember { mutableStateOf<String?>(null) }
     var pendingUpdate by remember { mutableStateOf<UpdateInfo?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var tokenDraft by remember { mutableStateOf(updates.token.orEmpty()) }
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -145,11 +146,45 @@ fun SettingsScreen(
                 fontWeight = FontWeight.Bold
             )
             Text(
-                "Installed version ${updates.installedVersion}. This app is not on a store — it " +
-                    "updates itself from this project's GitHub releases.",
+                "Installed version ${updates.installedVersion}. Not on a store — it updates " +
+                    "itself from this project's GitHub releases.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            OutlinedTextField(
+                value = tokenDraft,
+                onValueChange = { tokenDraft = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("GitHub token (private repo)") },
+                placeholder = { Text("ghp_… or github_pat_…") },
+                singleLine = true,
+                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = {
+                        updates.saveToken(tokenDraft)
+                        updateStatus =
+                            if (updates.isPrivateRepo) {
+                                "Token cleared"
+                            } else {
+                                "Token saved"
+                            }
+                    }
+                ) {
+                    Text("Save token")
+                }
+                TextButton(
+                    onClick = {
+                        tokenDraft = ""
+                        updates.saveToken(null)
+                        updateStatus = "Token cleared"
+                    }
+                ) {
+                    Text("Clear")
+                }
+            }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
