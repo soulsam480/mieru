@@ -113,6 +113,10 @@ ui/settings  SettingsScreen
 | 39 | Background playback | playback pauses on `ON_STOP` (no background service) |
 | 40 | Auto updates | `UpdateChecker` reads GitHub releases (daily, once per 24 h), banner on the list, "Download & install" in Settings via FileProvider |
 
+Note: the repo is **private**, so the updater needs a GitHub token (Settings → "GitHub token");
+unauthenticated `/releases/latest` returns 404. Verified: with a token the API returns
+`v1.2.0` + `app-release.apk`, and the uploaded asset digests match the local build byte for byte.
+
 Tests: **12/12** (`LiveApiTest` 6, `PayloadTest` 1, `EpisodeRulesTest` 3, `VersionRulesTest` 2).
 
 ## Optional backlog (not requested, not blocking)
