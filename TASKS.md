@@ -119,6 +119,18 @@ unauthenticated `/releases/latest` returns 404. Verified: with a token the API r
 
 Tests: **12/12** (`LiveApiTest` 6, `PayloadTest` 1, `EpisodeRulesTest` 3, `VersionRulesTest` 2).
 
+## Round 3 (v1.2.3)
+
+| # | Item | Fix |
+|---|---|---|
+| 41 | Latest feed showed random shows | schedule feed is filtered to subbed airings (raw-only simulcasts and kids shows dropped); window clamped to 7 days, which is the API's minimum |
+| 42 | Genre filters on Latest | hidden on the Latest tab, shown on Popular / Top rated / A–Z |
+| 43 | "0m ago" on cards | reads “just now” under a minute |
+| 44 | Next/previous jumped to season 1 | the player route now uses the season on screen, not the id the detail route was opened with |
+| 45 | Dub playing by default | Sub/Dub preference in Settings; the source picker sorts the preferred track first |
+
+Tests: **16/16** (adds `TrackPreferenceTest` and `LatestFeedTest`).
+
 ## Optional backlog (not requested, not blocking)
 
 - AniList/MAL sync for progress (the web app has it; the API endpoints exist).
