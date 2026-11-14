@@ -20,7 +20,8 @@ Three screens: **browse → episodes → watch**, plus local watch progress.
 ## Features
 
 **Browse**
-- *Latest episodes* — a real airing feed (what came out this week), not a sorted catalogue
+- *Latest episodes* — subbed airings from the last week, newest first; genre filters are hidden
+  here because it is a feed, not a catalogue query
 - *Popular*, *Top rated*, *A–Z*, genre chips, title search, cursor pagination
 - Cards show covers, format, year, episode count, score; the Latest feed also shows
   `EP 24 · 2h ago`
@@ -34,6 +35,8 @@ Three screens: **browse → episodes → watch**, plus local watch progress.
 - HLS playback with automatic quality
 - Subtitles: track picker, plus size / colour / background / outline styling
 - Server switcher (`Source`) with automatic fallback when a provider dies
+- Sub/Dub preference in Settings — the source picker then starts on that audio track
+- Next/previous episode stay inside the season you started from
 - Centre play/pause, double-tap left/right to seek ±10 s
 - Drag on the left third for brightness, right third for volume
 - Fullscreen (immersive + landscape), prev/next episode, `Info` jumps to the show page
@@ -108,6 +111,9 @@ What it proves:
 | `full_watch_chain_resolves_and_plays` | `/play` → source pick → master playlist → variant → a **real video segment** (200/206) |
 | `subtitle_files_are_real_vtt` | subtitle URLs actually return `WEBVTT` |
 | `EpisodeRulesTest` | specials (20008+) are dropped; unreleased episodes are flagged |
+| `EpisodeNavigationTest` | next/previous never leave the season on screen |
+| `TrackPreferenceTest` | Sub/Dub preference decides which track is offered first |
+| `LatestFeedTest` | the latest feed contains no raw-only airings |
 | `VersionRulesTest` | dotted version comparison for the updater |
 
 Providers vary between calls, so the chain test tries sources the way the app does and only
