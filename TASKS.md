@@ -129,7 +129,7 @@ Tests: **12/12** (`LiveApiTest` 6, `PayloadTest` 1, `EpisodeRulesTest` 3, `Versi
 | 44 | Next/previous jumped to season 1 | the player route now uses the season on screen, not the id the detail route was opened with |
 | 45 | Dub playing by default | Sub/Dub preference in Settings; the source picker sorts the preferred track first |
 
-Tests: **16/16** (adds `TrackPreferenceTest` and `LatestFeedTest`).
+Tests: **19/19** (adds `TrackPreferenceTest`, `LatestFeedTest`, `EpisodeNavigationTest`).
 
 ## Optional backlog (not requested, not blocking)
 
