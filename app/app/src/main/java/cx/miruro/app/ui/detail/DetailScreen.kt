@@ -75,7 +75,7 @@ fun DetailScreen(
     animeId: String,
     fallbackTitle: String,
     onBack: () -> Unit,
-    onPlay: (episode: Int, title: String) -> Unit
+    onPlay: (animeId: String, episode: Int, title: String) -> Unit
 ) {
     val vm: DetailViewModel =
         viewModel { DetailViewModel(api, progress, franchises) }
@@ -141,7 +141,7 @@ fun DetailScreen(
 
                     item {
                         Button(
-                            onClick = { onPlay(state.nextEpisode(), title) },
+                            onClick = { onPlay(shownId, state.nextEpisode(), title) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -187,7 +187,8 @@ fun DetailScreen(
                             fraction = state.watched[episode.number]?.fraction,
                             released = episode.isReleased(),
                             onClick = {
-                                onPlay(episode.number, "$title · EP ${episode.number}")
+                                // Use the season actually on screen, not the route we arrived by.
+                                onPlay(shownId, episode.number, "$title · EP ${episode.number}")
                             }
                         )
                     }

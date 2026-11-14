@@ -36,6 +36,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cx.miruro.app.data.MiruroApi
+import cx.miruro.app.data.PlaybackPrefsStore
 import cx.miruro.app.data.ProgressStore
 import cx.miruro.app.data.StyleStore
 import kotlinx.coroutines.delay
@@ -45,6 +46,7 @@ fun PlayerScreen(
     api: MiruroApi,
     progress: ProgressStore,
     styles: StyleStore,
+    prefs: PlaybackPrefsStore,
     animeId: String,
     animeTitle: String,
     startEpisode: Int,
@@ -52,7 +54,7 @@ fun PlayerScreen(
     onOpenInfo: () -> Unit
 ) {
     val vm: PlayerViewModel = viewModel {
-        PlayerViewModel(api, progress, animeId, animeTitle, startEpisode)
+        PlayerViewModel(api, progress, prefs, animeId, animeTitle, startEpisode)
     }
     val state by vm.state.collectAsStateWithLifecycle()
 

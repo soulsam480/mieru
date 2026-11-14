@@ -249,8 +249,12 @@ fun ListScreen(
                         .fillMaxSize()
                         .alpha(if (state.loading) 0.45f else 1f)
                 ) {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        GenreRow(selected = state.genre, onSelect = vm::onGenreChange)
+                    // The Latest feed is what aired this week; genre filters only make sense
+                    // for the catalogue tabs.
+                    if (state.sort != SORT_LATEST) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            GenreRow(selected = state.genre, onSelect = vm::onGenreChange)
+                        }
                     }
 
                     if (state.continueItems.isNotEmpty()) {

@@ -45,6 +45,7 @@ fun MiruroNavHost(app: MiruroApp) {
                 api = app.api,
                 endpoints = app.endpoints,
                 updates = app.updates,
+                prefs = app.prefs,
                 onBack = { nav.popBackStack() }
             )
         }
@@ -67,8 +68,8 @@ fun MiruroNavHost(app: MiruroApp) {
                 animeId = id,
                 fallbackTitle = entry.arguments?.getString("title").orEmpty(),
                 onBack = { nav.popBackStack() },
-                onPlay = { episode, title ->
-                    nav.navigate("player/$id/$episode?title=${Uri.encode(title)}")
+                onPlay = { playId, episode, title ->
+                    nav.navigate("player/$playId/$episode?title=${Uri.encode(title)}")
                 }
             )
         }
@@ -90,6 +91,7 @@ fun MiruroNavHost(app: MiruroApp) {
                 api = app.api,
                 progress = app.progress,
                 styles = app.styles,
+                prefs = app.prefs,
                 animeId = playerAnimeId,
                 animeTitle = playerTitle,
                 startEpisode = entry.arguments?.getInt("ep") ?: 1,

@@ -18,12 +18,20 @@ object StreamPicker {
     /** Sub before dub, everything else after. */
     private val trackOrder = listOf("ssub", "sub", "dub", "raw")
 
-    fun options(play: PlayEnvelope): List<StreamOption> {
-        val out = mutableListOf<StreamOption>()
+    fun options(
+        play: PlayEnvelope,
+        preference: TrackPreference = TrackPreference.SUB
+    ): List<StreamOption> {
+        val order =
+            when (preference) {
+                TrackPreference.SUB -> listOf("ssub", "sub", "dub", "raw")
+                TrackPreference.DUB -> listOf("dub", "ssub", "sub", "raw")
+            }
+        val collected = mutableListOf<Pair<Int, StreamOption>>()
 
         val tracks =
             play.tracks.sortedBy { track ->
-                trackOrder.indexOf(track.track).let { if (it < 0) 99 else it }
+                order.indexOf(track.track).let { if (it < 0) 99 else it }
             }
 
         for (track in tracks) {
@@ -52,7 +60,8 @@ object StreamPicker {
                             originOf(referer)?.let { put("Origin", it) }
                         }
 
-                    out +=
+                    collected +=
+                        order.indexOf(track.track).let { if (it < 0) 99 else it } to
                         StreamOption(
                             track = track.track,
                             label = optionLabel(track.track, provider.provider, server.server),
@@ -70,13 +79,17 @@ object StreamPicker {
             }
         }
 
-        // Sources that ship subtitles first — that is what people actually want to watch.
-        return out
+        // Preferred track first, then sources that actually ship subtitles.
+        return collected
+            .sortedWith(compareBy({ it.first }, { -it.second.subtitleCount }))
+            .map { it.second }
             .distinctBy { it.stream.url }
-            .sortedByDescending { it.subtitleCount }
     }
 
-    fun pick(play: PlayEnvelope): ResolvedStream? = options(play).firstOrNull()?.stream
+    fun pick(
+        play: PlayEnvelope,
+        preference: TrackPreference = TrackPreference.SUB
+    ): ResolvedStream? = options(play, preference).firstOrNull()?.stream
 
     /** Some providers list subtitle entries that are not subtitle files (icarus: `.jpeg` → 403). */
     private fun usableSubtitles(subtitles: List<Subtitle>): List<Subtitle> =

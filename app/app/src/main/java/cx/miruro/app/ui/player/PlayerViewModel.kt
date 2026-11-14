@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cx.miruro.app.data.Episode
 import cx.miruro.app.data.MiruroApi
+import cx.miruro.app.data.PlaybackPrefsStore
 import cx.miruro.app.data.ProgressStore
 import cx.miruro.app.data.ResolvedStream
 import cx.miruro.app.data.StreamOption
@@ -30,6 +31,7 @@ data class PlayerUiState(
 class PlayerViewModel(
     private val api: MiruroApi,
     private val progress: ProgressStore,
+    private val prefs: PlaybackPrefsStore,
     private val animeId: String,
     private val animeTitle: String,
     startEpisode: Int
@@ -74,7 +76,10 @@ class PlayerViewModel(
             }
 
             val play = runCatching { api.play(animeId, episode) }
-            val options = play.getOrNull()?.let { StreamPicker.options(it) }.orEmpty()
+            val options =
+                play.getOrNull()
+                    ?.let { StreamPicker.options(it, prefs.trackPreference()) }
+                    .orEmpty()
 
             android.util.Log.d(
                 "MiruroPlayer",

@@ -115,18 +115,26 @@ class MiruroApi(private val endpoints: EndpointStore = EndpointStore.inMemory())
         return get("/api/v1/anime", CatalogPage.serializer(), query).data
     }
 
-    /** Episodes that aired in the last [daysBack] days, newest first, one row per show. */
+    /**
+     * What actually came out lately, newest first, one row per show.
+     *
+     * Only subbed airings are requested: the raw feed drags in long-running kids shows and
+     * region-locked simulcasts, which is what made the home screen look random.
+     */
     suspend fun recentlyAired(daysBack: Long = 7): List<AiringEntry> {
+        // The endpoint only answers for a window of a week or more, and only at limit=10000.
+        val window = daysBack.coerceAtLeast(7)
         val today = java.time.LocalDate.now()
         val query =
             mapOf(
-                "from" to today.minusDays(daysBack).toString(),
+                "from" to today.minusDays(window).toString(),
                 "to" to today.toString(),
-                "track" to "raw,sub",
+                "track" to "raw,sub", // the endpoint accepts only this pair; raw is dropped below
                 "limit" to "10000"
             )
         val envelope = get("/api/v1/schedule", ScheduleEnvelope.serializer(), query)
         return envelope.data
+            .filter { it.track == null || it.track == "sub" }
             .sortedByDescending { it.airAt }
             .distinctBy { it.animeId }
     }

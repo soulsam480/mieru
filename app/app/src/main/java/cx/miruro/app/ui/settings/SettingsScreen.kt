@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +37,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cx.miruro.app.data.EndpointStore
 import cx.miruro.app.data.MiruroApi
+import cx.miruro.app.data.PlaybackPrefsStore
+import cx.miruro.app.data.TrackPreference
 import cx.miruro.app.data.UpdateChecker
 import cx.miruro.app.data.UpdateInfo
 import kotlinx.coroutines.launch
@@ -47,6 +50,7 @@ fun SettingsScreen(
     api: MiruroApi,
     endpoints: EndpointStore,
     updates: UpdateChecker,
+    prefs: PlaybackPrefsStore,
     onBack: () -> Unit
 ) {
     var serverDraft by remember { mutableStateOf(endpoints.baseUrl()) }
@@ -133,6 +137,29 @@ fun SettingsScreen(
             }
 
             serverStatus?.let { Hint(it) }
+
+            Spacer(Modifier.height(14.dp))
+            SectionTitle("Playback")
+            Hint("Which audio track to pick when a source offers both.")
+            var preference by remember { mutableStateOf(prefs.trackPreference()) }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = preference == TrackPreference.SUB,
+                    onClick = {
+                        preference = TrackPreference.SUB
+                        prefs.save(TrackPreference.SUB)
+                    },
+                    label = { Text("Sub") }
+                )
+                FilterChip(
+                    selected = preference == TrackPreference.DUB,
+                    onClick = {
+                        preference = TrackPreference.DUB
+                        prefs.save(TrackPreference.DUB)
+                    },
+                    label = { Text("Dub") }
+                )
+            }
 
             Spacer(Modifier.height(14.dp))
             SectionTitle("Updates")

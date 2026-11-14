@@ -4,6 +4,7 @@ import android.app.Application
 import cx.miruro.app.data.EndpointStore
 import cx.miruro.app.data.FranchiseStore
 import cx.miruro.app.data.MiruroApi
+import cx.miruro.app.data.PlaybackPrefsStore
 import cx.miruro.app.data.ProgressStore
 import cx.miruro.app.data.StyleStore
 import cx.miruro.app.data.UpdateChecker
@@ -21,6 +22,8 @@ class MiruroApp : Application() {
         private set
     lateinit var styles: StyleStore
         private set
+    lateinit var prefs: PlaybackPrefsStore
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -28,6 +31,7 @@ class MiruroApp : Application() {
         api = MiruroApi(endpoints)
         progress = ProgressStore(File(filesDir, "progress.json"))
         styles = StyleStore(File(filesDir, "subtitle-style.json"))
+        prefs = PlaybackPrefsStore(File(filesDir, "track-preference.txt"))
         updates = UpdateChecker(this)
         updates.checkInBackground(
             kotlinx.coroutines.CoroutineScope(
