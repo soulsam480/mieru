@@ -11,7 +11,8 @@ A small, fast Android app for a Miruro-compatible anime API. Kotlin, Jetpack Com
 Three screens: **browse → episodes → watch**, plus local watch progress.
 
 <p align="left">
-  <img alt="version" src="https://img.shields.io/badge/version-1.1.0-7C5CFF">
+  <img alt="version" src="https://img.shields.io/badge/version-1.3.0-7C5CFF">
+  <img alt="licence" src="https://img.shields.io/badge/licence-AGPL--3.0-blue">
   <img alt="minSdk" src="https://img.shields.io/badge/minSdk-26-informational">
   <img alt="kotlin" src="https://img.shields.io/badge/Kotlin-2.4.21-informational">
   <img alt="license" src="https://img.shields.io/badge/use-personal-lightgrey">
@@ -165,3 +166,12 @@ TASKS.md                 feature + bug tracker with verification evidence
   source is skipped rather than fatal.
 - If the edge ever moves to a JavaScript challenge, no native client can pass it — that would
   need a relay. This is documented in `skills/reverse-engineering-streaming-apis/`.
+
+## Licence and credits
+
+**AGPL-3.0-or-later** — see [`LICENSE`](LICENSE).
+
+Features and design decisions were inspired by **[Mangayomi](https://github.com/kodjodevf/mangayomi)**
+(Apache-2.0, by the Mangayomi contributors), in particular its interchangeable-source model, its
+intro/outro skipping, and its player affordances (speed, up-next, hold-to-boost). Mieru contains no
+Mangayomi source code, but the ideas came from there and are credited in [`NOTICE`](NOTICE).

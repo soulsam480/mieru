@@ -1,0 +1,45 @@
+Mieru
+Copyright (C) 2026 sambit <soulsam480@hotmail.com>
+
+This program is free software: you can redistribute it and/or modify it under the terms of the
+GNU Affero General Public License as published by the Free Software Foundation, either version 3
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+Affero General Public License for more details.
+
+The full licence text is in LICENSE.
+
+---
+
+## Third-party attribution
+
+### Mangayomi
+- Project: Mangayomi — https://github.com/kodjodevf/mangayomi
+- Licence: Apache License 2.0
+- Copyright: the Mangayomi contributors
+
+Mieru is an independent Kotlin/Compose client and contains no Mangayomi source code. Several
+features and design decisions were inspired by Mangayomi, and are credited here because the
+debt is real even where the code is not shared:
+
+| Borrowed concept | Mangayomi origin | Where it lives here |
+|---|---|---|
+| A list of interchangeable content sources instead of one hard-coded host | `lib/eval`, `extension_store_service`, `source_repository` | `data/SourceStore.kt`, Settings → Sources |
+| Skipping openings/endings | `lib/services/aniskip.dart` | `data/SkipTime.kt`, `ui/player/SkipPill.kt` |
+| Playback speed, "up next" countdown, hold-to-boost | `lib/modules/anime` | `ui/player/PlaybackSpeed.kt`, `UpNextCard.kt`, `PlayerGestures.kt` |
+
+Mangayomi is licensed under the Apache License, Version 2.0. If any of its source is ever copied
+into this project, that copy must keep its copyright and licence notices, and this notice must be
+updated to say which files are derived from it.
+
+### Everything else
+
+- Media3 / ExoPlayer, Jetpack Compose, OkHttp, kotlinx.serialization, Coil — Apache License 2.0
+- Android SDK — Android SDK licence
+
+## Content
+
+This project hosts no content. It ships no media, catalogue or streams; it is a client for a
+third-party API that the user configures. See the top of README.md.
