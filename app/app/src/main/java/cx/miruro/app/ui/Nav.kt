@@ -43,7 +43,7 @@ fun MiruroNavHost(app: MiruroApp) {
         composable(ROUTE_SETTINGS) {
             SettingsScreen(
                 api = app.api,
-                endpoints = app.endpoints,
+                sources = app.sources,
                 updates = app.updates,
                 prefs = app.prefs,
                 onBack = { nav.popBackStack() }

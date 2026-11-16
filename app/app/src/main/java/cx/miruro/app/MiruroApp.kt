@@ -1,17 +1,17 @@
 package cx.miruro.app
 
 import android.app.Application
-import cx.miruro.app.data.EndpointStore
 import cx.miruro.app.data.FranchiseStore
 import cx.miruro.app.data.MiruroApi
 import cx.miruro.app.data.PlaybackPrefsStore
 import cx.miruro.app.data.ProgressStore
+import cx.miruro.app.data.SourceStore
 import cx.miruro.app.data.StyleStore
 import cx.miruro.app.data.UpdateChecker
 import java.io.File
 
 class MiruroApp : Application() {
-    lateinit var endpoints: EndpointStore
+    lateinit var sources: SourceStore
         private set
     val franchises = FranchiseStore()
     lateinit var updates: UpdateChecker
@@ -27,8 +27,12 @@ class MiruroApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        endpoints = EndpointStore(File(filesDir, "endpoint.txt"))
-        api = MiruroApi(endpoints)
+        sources =
+            SourceStore(
+                file = File(filesDir, "sources.json"),
+                legacyFile = File(filesDir, "endpoint.txt")
+            )
+        api = MiruroApi(sources)
         progress = ProgressStore(File(filesDir, "progress.json"))
         styles = StyleStore(File(filesDir, "subtitle-style.json"))
         prefs = PlaybackPrefsStore(File(filesDir, "track-preference.txt"))

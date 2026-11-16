@@ -1,5 +1,6 @@
 package cx.miruro.app.data
 
+import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
@@ -11,7 +12,7 @@ import okhttp3.Request
 
 class ApiException(val code: Int, val detail: String) : IOException("HTTP $code · $detail")
 
-class MiruroApi(private val endpoints: EndpointStore = EndpointStore.inMemory()) {
+class MiruroApi(private val sources: SourceStore = SourceStore(File("/dev/null"))) {
 
     private val json =
         Json {
@@ -27,7 +28,7 @@ class MiruroApi(private val endpoints: EndpointStore = EndpointStore.inMemory())
     private val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .addInterceptor { chain ->
-                val base = endpoints.baseUrl()
+                val base = sources.baseUrl()
                 val request =
                     chain.request().newBuilder()
                         .header("Sec-Fetch-Site", "same-origin")
@@ -44,13 +45,13 @@ class MiruroApi(private val endpoints: EndpointStore = EndpointStore.inMemory())
             .build()
     }
 
-    fun baseUrl(): String = endpoints.baseUrl()
+    fun baseUrl(): String = sources.baseUrl()
 
-    fun revision(): Int = endpoints.revision
+    fun revision(): Int = sources.revision
 
     suspend fun health(): Boolean = withContext(Dispatchers.IO) {
         runCatching {
-            val url = (endpoints.baseUrl() + "/health").toHttpUrl()
+            val url = (sources.baseUrl() + "/health").toHttpUrl()
             client.newCall(Request.Builder().url(url).get().build()).execute().use {
                 it.isSuccessful
             }
@@ -60,7 +61,7 @@ class MiruroApi(private val endpoints: EndpointStore = EndpointStore.inMemory())
     private suspend fun raw(path: String, query: Map<String, String> = emptyMap()): String =
         withContext(Dispatchers.IO) {
             val url =
-                (endpoints.baseUrl() + path).toHttpUrl().newBuilder().apply {
+                (sources.baseUrl() + path).toHttpUrl().newBuilder().apply {
                     query.forEach { (key, value) -> addQueryParameter(key, value) }
                 }.build()
 
