@@ -170,14 +170,16 @@ internal class PlayerController(context: Context) {
                 }.build()
     }
 
-    fun useTextGroup(group: Tracks.Group?) {
+    fun useTextGroup(group: Tracks.Group?, trackIndex: Int = 0) {
         player.trackSelectionParameters =
             player.trackSelectionParameters
                 .buildUpon()
                 .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, group == null)
                 .apply {
                     if (group != null) {
-                        setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, 0))
+                        setOverrideForType(
+                            TrackSelectionOverride(group.mediaTrackGroup, trackIndex)
+                        )
                     }
                 }.build()
     }

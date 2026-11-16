@@ -191,17 +191,25 @@ fun PlayerScreen(
             return@LaunchedEffect
         }
 
-        val matchingGroup = controller.textGroups.firstOrNull { group ->
-            (0 until group.length).any { index ->
-                group.getTrackFormat(index).language?.lowercase()?.startsWith(language) == true
+        // Pick the track that matches the language, not track 0 of whatever group contains it:
+        // HLS providers can pack every language into one group, which is how Arabic got selected
+        // on an English default.
+        val match =
+            controller.textGroups.firstNotNullOfOrNull { group ->
+                (0 until group.length)
+                    .firstOrNull { index ->
+                        group.getTrackFormat(index).language?.lowercase()?.startsWith(language) ==
+                            true
+                    }
+                    ?.let { index -> group to index }
             }
-        }
         android.util.Log.d(
             "MiruroPlayer",
-            "subtitle effect: language=$language groups=${controller.textGroups.size} match=${matchingGroup != null}"
+            "subtitle effect: language=$language groups=${controller.textGroups.size} " +
+                "match=${match != null}"
         )
-        if (matchingGroup != null) {
-            controller.useTextGroup(matchingGroup)
+        if (match != null) {
+            controller.useTextGroup(match.first, match.second)
         }
     }
 
