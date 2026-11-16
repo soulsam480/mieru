@@ -13,14 +13,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -32,29 +35,34 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import cx.miruro.app.data.EndpointStore
 import cx.miruro.app.data.MiruroApi
 import cx.miruro.app.data.PlaybackPrefsStore
+import cx.miruro.app.data.SourceStore
 import cx.miruro.app.data.TrackPreference
 import cx.miruro.app.data.UpdateChecker
 import cx.miruro.app.data.UpdateInfo
 import kotlinx.coroutines.launch
 
-/** Two things only: which server to talk to, and how the app updates itself. */
+/** Sources, playback preference, and self-updates. Nothing else. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     api: MiruroApi,
-    endpoints: EndpointStore,
+    sources: SourceStore,
     updates: UpdateChecker,
     prefs: PlaybackPrefsStore,
     onBack: () -> Unit
 ) {
-    var serverDraft by remember { mutableStateOf(endpoints.baseUrl()) }
-    var serverStatus by remember { mutableStateOf<String?>(null) }
+    var allSources by remember { mutableStateOf(sources.sources()) }
+    var selectedId by remember { mutableStateOf(sources.selected().id) }
+    var newName by remember { mutableStateOf("") }
+    var newUrl by remember { mutableStateOf("") }
+    var sourceStatus by remember { mutableStateOf<String?>(null) }
     var serverBusy by remember { mutableStateOf(false) }
 
     var updateStatus by remember { mutableStateOf<String?>(null) }
@@ -62,6 +70,11 @@ fun SettingsScreen(
     var updateBusy by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
+
+    fun refreshSources() {
+        allSources = sources.sources()
+        selectedId = sources.selected().id
+    }
 
     Scaffold(
         topBar = {
@@ -88,55 +101,124 @@ fun SettingsScreen(
                     .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            SectionTitle("API server")
+            SectionTitle("Sources")
             Hint(
-                "Miruro-compatible server. If it moves or goes down, put a working host here — " +
-                    "mirrors work as long as they serve the same API."
+                "Miruro-compatible servers. One is active — add a mirror and switch when a " +
+                    "host moves or blocks."
             )
 
-            OutlinedTextField(
-                value = serverDraft,
-                onValueChange = {
-                    serverDraft = it
-                    serverStatus = null
-                },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Base URL") },
-                placeholder = { Text(EndpointStore.DEFAULT_BASE_URL) },
-                singleLine = true
-            )
+            allSources.forEach { source ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = source.id == selectedId,
+                        onClick = {
+                            sources.select(source.id)
+                            refreshSources()
+                            sourceStatus = null
+                        }
+                    )
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            source.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            source.baseUrl,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    if (allSources.size > 1) {
+                        IconButton(
+                            onClick = {
+                                sources.remove(source.id)
+                                refreshSources()
+                            }
+                        ) {
+                            Icon(Icons.Filled.Delete, contentDescription = "Remove source")
+                        }
+                    }
+                }
+            }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = {
                         scope.launch {
                             serverBusy = true
-                            endpoints.save(serverDraft)
-                            serverDraft = endpoints.baseUrl()
-                            serverStatus =
-                                if (api.health()) "Reachable" else "No answer from /health"
+                            sourceStatus =
+                                if (api.health()) {
+                                    "Reachable"
+                                } else {
+                                    "No answer from /health"
+                                }
                             serverBusy = false
                         }
                     },
                     enabled = !serverBusy
                 ) {
-                    Text("Save & test")
+                    Text("Test active")
                 }
                 TextButton(
                     onClick = {
-                        endpoints.reset()
-                        serverDraft = endpoints.baseUrl()
-                        serverStatus = null
+                        sources.reset()
+                        refreshSources()
+                        sourceStatus = null
                     }
                 ) {
-                    Text("Reset to default")
+                    Text("Reset")
                 }
                 if (serverBusy) {
                     CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                 }
             }
 
-            serverStatus?.let { Hint(it) }
+            sourceStatus?.let { Hint(it) }
+
+            HorizontalDivider(Modifier.padding(vertical = 6.dp))
+
+            SectionTitle("Add a source")
+            Hint("Any host that serves the same API works.")
+            OutlinedTextField(
+                value = newName,
+                onValueChange = { newName = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Name (optional)") },
+                singleLine = true
+            )
+            OutlinedTextField(
+                value = newUrl,
+                onValueChange = { newUrl = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Base URL") },
+                placeholder = { Text("https://www.miruro.cx") },
+                singleLine = true
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = {
+                        val added = sources.add(newName, newUrl)
+                        if (added != null) {
+                            newName = ""
+                            newUrl = ""
+                            sourceStatus = "Added ${added.name}"
+                            refreshSources()
+                        } else {
+                            sourceStatus = "That URL does not look usable"
+                        }
+                    },
+                    enabled = newUrl.isNotBlank()
+                ) {
+                    Text("Add")
+                }
+            }
 
             Spacer(Modifier.height(14.dp))
             SectionTitle("Playback")
@@ -218,12 +300,7 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(8.dp))
             Text(
-                "Default server: ${EndpointStore.DEFAULT_BASE_URL}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                "Watch progress is stored on this device and is not affected by changing servers.",
+                "Watch progress is stored on this device and is not affected by changing sources.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
