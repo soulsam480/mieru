@@ -30,7 +30,12 @@ private data class GithubAsset(
     val size: Long = 0
 )
 
-data class UpdateInfo(val version: String, val apkUrl: String, val notes: String?)
+data class UpdateInfo(
+    val version: String,
+    val apkUrl: String,
+    val notes: String?,
+    val apkSize: Long = 0
+)
 
 /**
  * The app is not on any store, so updates come straight from GitHub releases. This checks the
@@ -93,7 +98,12 @@ class UpdateChecker(private val context: Context) {
                 if (apk == null || !isNewerVersion(version, installedVersion)) {
                     null
                 } else {
-                    UpdateInfo(version = version, apkUrl = apk.url, notes = release.body)
+                    UpdateInfo(
+                        version = version,
+                        apkUrl = apk.url,
+                        notes = release.body,
+                        apkSize = apk.size
+                    )
                 }
             }
         }
@@ -106,15 +116,29 @@ class UpdateChecker(private val context: Context) {
 
         val request = Request.Builder().url(
             info.apkUrl
-        ).header("User-Agent", "MiruroClient").build()
+        ).header("User-Agent", "Mieru").build()
         http.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 throw IllegalStateException(
                     "Download failed: ${response.code}"
                 )
             }
-            response.body.byteStream().use { input ->
-                target.outputStream().use { output -> input.copyTo(output) }
+            val bytes = response.body.bytes()
+            validateApkBytes(bytes, info.apkSize)?.let { problem ->
+                throw IllegalStateException(problem)
+            }
+            target.writeBytes(bytes)
+
+            // Now that the file exists, ask the package manager what it actually is.
+            val archive = context.packageManager.getPackageArchiveInfo(target.absolutePath, 0)
+            if (archive == null) {
+                throw IllegalStateException("Downloaded file is not a readable APK")
+            }
+            val archiveVersion = archive.versionName
+            if (archiveVersion != null && archiveVersion != info.version) {
+                throw IllegalStateException(
+                    "Downloaded $archiveVersion, expected ${info.version}"
+                )
             }
         }
         target
