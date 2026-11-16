@@ -2,6 +2,7 @@ package cx.miruro.app.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import cx.miruro.app.data.AutoSkipStore
 import cx.miruro.app.data.MiruroApi
 import cx.miruro.app.data.PlaybackPrefsStore
 import cx.miruro.app.data.SourceStore
@@ -56,6 +58,7 @@ fun SettingsScreen(
     sources: SourceStore,
     updates: UpdateChecker,
     prefs: PlaybackPrefsStore,
+    autoSkip: AutoSkipStore,
     onBack: () -> Unit
 ) {
     var allSources by remember { mutableStateOf(sources.sources()) }
@@ -224,7 +227,11 @@ fun SettingsScreen(
             SectionTitle("Playback")
             Hint("Which audio track to pick when a source offers both.")
             var preference by remember { mutableStateOf(prefs.trackPreference()) }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            var autoSkipSettings by remember { mutableStateOf(autoSkip.settings()) }
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 FilterChip(
                     selected = preference == TrackPreference.SUB,
                     onClick = {
@@ -241,7 +248,17 @@ fun SettingsScreen(
                     },
                     label = { Text("Dub") }
                 )
+                FilterChip(
+                    selected = autoSkipSettings.introAndOutro,
+                    onClick = {
+                        autoSkipSettings =
+                            autoSkipSettings.copy(introAndOutro = !autoSkipSettings.introAndOutro)
+                        autoSkip.saveSettings(autoSkipSettings)
+                    },
+                    label = { Text("Auto-skip intro & outro") }
+                )
             }
+            Hint("Auto-skip jumps past the opening and ending the provider marked for an episode.")
 
             Spacer(Modifier.height(14.dp))
             SectionTitle("Updates")

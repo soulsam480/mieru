@@ -7,8 +7,10 @@ import cx.miruro.app.data.MiruroApi
 import cx.miruro.app.data.PlaybackPrefsStore
 import cx.miruro.app.data.ProgressStore
 import cx.miruro.app.data.ResolvedStream
+import cx.miruro.app.data.SkipTime
 import cx.miruro.app.data.StreamOption
 import cx.miruro.app.data.StreamPicker
+import cx.miruro.app.data.parseSkipTimes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,6 +20,8 @@ import kotlinx.coroutines.launch
 data class PlayerUiState(
     val episode: Int = 1,
     val episodes: List<Episode> = emptyList(),
+    /** Intro/outro windows the provider marked for [episode]. Empty when it published none. */
+    val skipTimes: List<SkipTime> = emptyList(),
     val options: List<StreamOption> = emptyList(),
     val selected: Int = 0,
     val startPositionMs: Long = 0L,
@@ -59,6 +63,7 @@ class PlayerViewModel(
         _state.update {
             it.copy(
                 episode = episode,
+                skipTimes = emptyList(),
                 loading = true,
                 error = null,
                 options = emptyList(),
@@ -81,6 +86,15 @@ class PlayerViewModel(
                     ?.let { StreamPicker.options(it, prefs.trackPreference()) }
                     .orEmpty()
 
+            // The episode list carries the skip markers; the play response does not.
+            val skipTimes =
+                parseSkipTimes(
+                    _state.value.episodes
+                        .firstOrNull { it.number == episode }
+                        ?.skipTimes
+                        .orEmpty()
+                )
+
             android.util.Log.d(
                 "MiruroPlayer",
                 "load anime=$animeId ep=$episode ok=${play.isSuccess} options=${options.size} " +
@@ -90,6 +104,7 @@ class PlayerViewModel(
             _state.update {
                 it.copy(
                     options = options,
+                    skipTimes = skipTimes,
                     selected = 0,
                     startPositionMs = progress.positionOf(animeId, episode),
                     artworkUrl = cover,

@@ -46,6 +46,7 @@ fun MiruroNavHost(app: MiruroApp) {
                 sources = app.sources,
                 updates = app.updates,
                 prefs = app.prefs,
+                autoSkip = app.autoSkip,
                 onBack = { nav.popBackStack() }
             )
         }
@@ -92,6 +93,7 @@ fun MiruroNavHost(app: MiruroApp) {
                 progress = app.progress,
                 styles = app.styles,
                 prefs = app.prefs,
+                autoSkip = app.autoSkip,
                 animeId = playerAnimeId,
                 animeTitle = playerTitle,
                 startEpisode = entry.arguments?.getInt("ep") ?: 1,
