@@ -3,6 +3,8 @@ package cx.miruro.app.ui.player
 import android.content.Context
 import android.media.AudioManager
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +31,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Which third of the screen a vertical drag started in. */
 private enum class DragEdge { None, Left, Right }
@@ -131,17 +134,28 @@ internal class GestureController(context: Context) {
 internal fun Modifier.playerGestures(
     gestures: GestureController,
     onTap: () -> Unit,
-    onDoubleTap: (ScreenZone) -> Unit
+    onDoubleTap: (ScreenZone) -> Unit,
+    onHoldStart: () -> Unit,
+    onHoldEnd: () -> Unit
 ): Modifier {
     // Rebuild the detectors after a rotation: otherwise the zone maths keep using the old bounds.
     val orientation = androidx.compose.ui.platform.LocalConfiguration.current.orientation
-    return playerGestureModifier(gestures, onTap, onDoubleTap, orientation)
+    return playerGestureModifier(
+        gestures = gestures,
+        onTap = onTap,
+        onDoubleTap = onDoubleTap,
+        onHoldStart = onHoldStart,
+        onHoldEnd = onHoldEnd,
+        orientationKey = orientation
+    )
 }
 
 private fun Modifier.playerGestureModifier(
     gestures: GestureController,
     onTap: () -> Unit,
     onDoubleTap: (ScreenZone) -> Unit,
+    onHoldStart: () -> Unit,
+    onHoldEnd: () -> Unit,
     orientationKey: Int
 ): Modifier = this
     .pointerInput(Unit) {
@@ -168,8 +182,42 @@ private fun Modifier.playerGestureModifier(
                         else -> ScreenZone.Center
                     }
                 )
-            }
+            },
+            // Only there to stop a hold from also counting as a tap; the hold itself is timed
+            // below so that it has a release to restore the speed on.
+            onLongPress = {}
         )
+    }
+    .pointerInput(Unit) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+
+            // Wait out the platform long-press timeout while the finger stays put. A lift, a
+            // drag or a consumed gesture ends the wait before the timeout and is not a hold.
+            val stoppedEarly = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                var still = true
+                while (still) {
+                    val event = awaitPointerEvent()
+                    val change = event.changes.firstOrNull { it.id == down.id }
+                    still =
+                        change != null &&
+                        change.pressed &&
+                        (change.position - down.position).getDistance() <=
+                        viewConfiguration.touchSlop
+                }
+                true
+            }
+            if (stoppedEarly != null) return@awaitEachGesture
+
+            onHoldStart()
+            // Hold until the finger lifts; losing the pointer counts as a release too.
+            while (true) {
+                val event = awaitPointerEvent()
+                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                if (!change.pressed) break
+            }
+            onHoldEnd()
+        }
     }
 
 @Composable
@@ -217,6 +265,25 @@ internal fun SeekFeedbackOverlay(feedback: SeekFeedback?, alignment: Alignment) 
             modifier = Modifier
                 .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(50))
                 .padding(horizontal = 20.dp, vertical = 10.dp)
+        )
+    }
+}
+
+/** "2× speed" pill while the video is being held down. */
+@Composable
+internal fun SpeedBoostOverlay(boosted: Boolean) {
+    if (!boosted) return
+
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Text(
+            "2× speed",
+            color = Color.White,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .padding(top = 72.dp)
+                .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(50))
+                .padding(horizontal = 14.dp, vertical = 7.dp)
         )
     }
 }

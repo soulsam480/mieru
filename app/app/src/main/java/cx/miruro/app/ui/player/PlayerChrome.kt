@@ -51,7 +51,7 @@ import androidx.media3.common.Format
 import cx.miruro.app.data.StreamOption
 import cx.miruro.app.data.SubtitleStyle
 
-internal enum class PlayerSheet { None, Sources, Subtitles, SubtitleStyle, Quality }
+internal enum class PlayerSheet { None, Sources, Subtitles, SubtitleStyle, Quality, Speed }
 
 /** Transient chrome state: visibility, which sheet is open, chosen tracks. */
 @Stable
@@ -148,6 +148,10 @@ internal fun PlayerBottomBar(
                 muted = chrome.subtitleLanguage == null
             ) { onOpenSheet(PlayerSheet.Subtitles) }
             PlayerPill(chrome.qualityLabel ?: "Auto") { onOpenSheet(PlayerSheet.Quality) }
+            PlayerPill(
+                label = "Speed " + formatSpeed(controller.playbackSpeed),
+                muted = controller.playbackSpeed == NORMAL_SPEED
+            ) { onOpenSheet(PlayerSheet.Speed) }
         }
     }
 }
@@ -293,6 +297,20 @@ internal fun PlayerSheets(
                         onClick = {
                             chrome.qualityLabel = label
                             controller.useVideoGroup(group)
+                            dismiss()
+                        }
+                    )
+                }
+            }
+
+            PlayerSheet.Speed -> SheetContent("Speed") {
+                PLAYBACK_SPEEDS.forEach { speed ->
+                    SheetRow(
+                        label = formatSpeed(speed),
+                        supporting = if (speed == NORMAL_SPEED) "Normal" else null,
+                        selected = controller.playbackSpeed == speed,
+                        onClick = {
+                            controller.playbackSpeed = speed
                             dismiss()
                         }
                     )
