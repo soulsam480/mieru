@@ -34,8 +34,8 @@ android {
         applicationId = "cx.miruro.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.2.3"
+        versionCode = 9
+        versionName = "1.3.1"
     }
 
     signingConfigs {
