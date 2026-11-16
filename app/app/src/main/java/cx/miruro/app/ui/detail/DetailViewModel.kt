@@ -8,6 +8,8 @@ import cx.miruro.app.data.EpisodeProgress
 import cx.miruro.app.data.FranchiseStore
 import cx.miruro.app.data.MiruroApi
 import cx.miruro.app.data.ProgressStore
+import cx.miruro.app.data.hasRealSchedule
+import cx.miruro.app.data.releasedEpisodeNumbers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,15 +22,29 @@ data class DetailUiState(
     val episodes: List<Episode> = emptyList(),
     val watched: Map<Int, EpisodeProgress> = emptyMap(),
     val seasons: List<Anime> = emptyList(),
+    /** Episode numbers that exist; anything else is a placeholder the provider padded in. */
+    val releasedNumbers: Set<Int> = emptySet(),
     val loading: Boolean = true,
     val error: String? = null
 ) {
-    val releasedEpisodes: List<Episode> get() = episodes.filter { it.isReleased() }
+    val releasedEpisodes: List<Episode>
+        get() {
+            val released = releasedEpisodeNumbers(episodes)
+            return episodes.filter { it.number in released }
+        }
+
+    /**
+     * What the list should show: episodes that exist, plus ones with a real upcoming air date.
+     * Rows the provider padded in with no date and no title are dropped — they are what made the
+     * numbering look broken ("…Episode 60, then Episode 13").
+     */
+    val visibleEpisodes: List<Episode>
+        get() = episodes.filter { it.hasRealSchedule() }
 
     /** First released episode that is unwatched or unfinished; falls back to the last one. */
     fun nextEpisode(): Int {
         val available = releasedEpisodes
-        if (available.isEmpty()) return episodes.firstOrNull()?.number ?: 1
+        if (available.isEmpty()) return visibleEpisodes.firstOrNull()?.number ?: 1
 
         val candidate =
             available.firstOrNull { episode ->
@@ -80,9 +96,10 @@ class DetailViewModel(
                 it.copy(
                     animeId = animeId,
                     anime = anime,
-                    episodes = list,
+                    episodes = list.filter { it.hasRealSchedule() },
                     watched = watched,
                     seasons = seasons,
+                    releasedNumbers = releasedEpisodeNumbers(list),
                     loading = false,
                     error = if (anime == null) (failure?.message ?: "Not found") else null
                 )

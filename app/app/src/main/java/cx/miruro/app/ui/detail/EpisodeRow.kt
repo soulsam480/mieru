@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import cx.miruro.app.data.Episode
+import cx.miruro.app.data.displayTitle
 
 @Composable
 internal fun EpisodeRow(
@@ -81,7 +82,7 @@ internal fun EpisodeRow(
 
         Column(Modifier.weight(1f)) {
             Text(
-                episode.title?.takeIf { it.isNotBlank() } ?: "Episode ${episode.number}",
+                episode.displayTitle() ?: "Episode ${episode.number}",
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

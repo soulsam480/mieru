@@ -54,6 +54,11 @@ class ListViewModel(private val api: MiruroApi, private val progress: ProgressSt
     val state: StateFlow<ListUiState> = _state.asStateFlow()
 
     private var cursor: String? = null
+
+    /** The Latest feed is paged locally: one schedule call, then slices of 24. */
+    private var latestPool: List<Anime> = emptyList()
+    private var latestIndex = 0
+    private var latestAirings: Map<String, AiringEntry> = emptyMap()
     private var endpointRevision = api.revision()
     private var searchJob: Job? = null
     private var loadJob: Job? = null
@@ -151,7 +156,7 @@ class ListViewModel(private val api: MiruroApi, private val progress: ProgressSt
 
     private suspend fun feedFor(snapshot: ListUiState, reset: Boolean): Feed =
         if (usesLatestFeed(snapshot)) {
-            latestFeed()
+            if (reset || latestPool.isEmpty()) latestFirstPage() else nextLatestPage()
         } else {
             Feed(
                 api.catalog(
@@ -172,20 +177,29 @@ class ListViewModel(private val api: MiruroApi, private val progress: ProgressSt
         snapshot.sort == SORT_LATEST && snapshot.genre == null && snapshot.query.isBlank()
 
     /**
-     * What aired recently, not a catalogue sort. Titles come from the catalogue by id, and the
-     * airing itself is kept so each card can say which episode is new.
+     * What aired recently, not a catalogue sort. The schedule gives every airing of the week in
+     * one call, so the feed is paged locally instead of being capped at a single screenful.
      */
-    private suspend fun latestFeed(): Feed {
+    private suspend fun latestFirstPage(): Feed {
         val airings = api.recentlyAired()
-        val airingById = airings.associateBy { it.animeId }
+        latestAirings = airings.associateBy { it.animeId }
 
-        val newest = airings.take(40)
+        val newest = airings.take(MAX_LATEST_ENTRIES)
         val animeById = api.animeByIds(newest.map { it.animeId }).associateBy { it.id }
-        val ordered = newest.mapNotNull { animeById[it.animeId] }
+        latestPool = newest.mapNotNull { animeById[it.animeId] }
+        latestIndex = 0
+
+        return nextLatestPage()
+    }
+
+    private fun nextLatestPage(): Feed {
+        val slice = latestPool.drop(latestIndex).take(LATEST_PAGE_SIZE)
+        latestIndex += slice.size
+        val more = latestIndex < latestPool.size
 
         return Feed(
-            page = CatalogPage(ordered, null, false),
-            airings = airingById
+            page = CatalogPage(slice, if (more) LOCAL_CURSOR else null, more),
+            airings = latestAirings
         )
     }
 
@@ -196,6 +210,9 @@ class ListViewModel(private val api: MiruroApi, private val progress: ProgressSt
 
     private companion object {
         const val PAGE_SIZE = 15
+        const val LATEST_PAGE_SIZE = 24
+        const val MAX_LATEST_ENTRIES = 120
+        const val LOCAL_CURSOR = "local"
         const val FALLBACK_SORT = "-popularity"
         const val SEARCH_DEBOUNCE_MILLIS = 400L
     }
