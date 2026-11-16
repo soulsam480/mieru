@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,10 +36,12 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import cx.miruro.app.data.AutoSkipStore
 import cx.miruro.app.data.MiruroApi
 import cx.miruro.app.data.PlaybackPrefsStore
 import cx.miruro.app.data.ProgressStore
 import cx.miruro.app.data.StyleStore
+import cx.miruro.app.data.windowAt
 import kotlinx.coroutines.delay
 
 @Composable
@@ -47,6 +50,7 @@ fun PlayerScreen(
     progress: ProgressStore,
     styles: StyleStore,
     prefs: PlaybackPrefsStore,
+    autoSkip: AutoSkipStore,
     animeId: String,
     animeTitle: String,
     startEpisode: Int,
@@ -69,6 +73,8 @@ fun PlayerScreen(
         }
     val chrome = remember { PlayerChromeState() }
     val gestures = remember { GestureController(context) }
+    val skipper = remember { SkipAutoSkipper() }
+    val autoSkipEnabled = remember { autoSkip.settings().introAndOutro }
     var isFullscreen by remember { mutableStateOf(false) }
     var subtitleStyle by remember { mutableStateOf(styles.subtitleStyle()) }
 
@@ -121,6 +127,19 @@ fun PlayerScreen(
                 vm.saveProgress(controller.player.currentPosition, controller.player.duration)
             }
         }
+    }
+
+    // Auto-skip: jump past a marked window the first time the playhead lands in it.
+    LaunchedEffect(state.episode, state.skipTimes, autoSkipEnabled) {
+        if (!autoSkipEnabled || state.skipTimes.isEmpty()) return@LaunchedEffect
+        snapshotFlow { controller.positionMs }
+            .collect { positionMs ->
+                val window = state.skipTimes.windowAt(positionMs) ?: return@collect
+                // Before the duration is known seekTo() would clamp the target to 0.
+                if (controller.durationMs > 0L && skipper.consume(state.episode, window)) {
+                    controller.seekTo(window.endMs)
+                }
+            }
     }
 
     LaunchedEffect(chrome.visible, controller.isPlaying) {
@@ -232,6 +251,16 @@ fun PlayerScreen(
                 )
             }
         }
+
+        // Above the bottom bar, but outside its auto-hiding block: it outlives the chrome.
+        SkipPill(
+            windows = state.skipTimes,
+            positionMs = { controller.positionMs },
+            onClick = { controller.seekTo(it.endMs) },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 14.dp, bottom = 104.dp)
+        )
 
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             GestureHudOverlay(gestures.hud)

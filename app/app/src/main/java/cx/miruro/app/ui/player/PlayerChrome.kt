@@ -368,7 +368,7 @@ private fun SheetRow(
 
 /** Small translucent pill used for every control in the chrome. */
 @Composable
-private fun PlayerPill(
+internal fun PlayerPill(
     label: String,
     enabled: Boolean = true,
     muted: Boolean = false,
