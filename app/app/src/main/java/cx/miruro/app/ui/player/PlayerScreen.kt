@@ -71,6 +71,8 @@ fun PlayerScreen(
     val gestures = remember { GestureController(context) }
     var isFullscreen by remember { mutableStateOf(false) }
     var subtitleStyle by remember { mutableStateOf(styles.subtitleStyle()) }
+    // Seconds left on the up-next card; null when no card is showing.
+    var upNextSeconds by remember { mutableStateOf<Int?>(null) }
 
     BackHandler {
         if (isFullscreen) isFullscreen = false else onBack()
@@ -82,6 +84,11 @@ fun PlayerScreen(
         controller.attach()
         PlaybackDiagnostics.attach(controller.player)
         controller.onPlaybackFailure = { vm.nextOptionOnFailure() }
+        controller.onPlaybackEnded = {
+            if (vm.nextEpisode() != null) {
+                upNextSeconds = upNextRemainingSeconds(elapsedTicks = 0)
+            }
+        }
         onDispose {
             vm.saveProgress(
                 controller.player.currentPosition,
@@ -96,6 +103,8 @@ fun PlayerScreen(
 
     LaunchedEffect(state.stream, state.startPositionMs, state.episode) {
         val stream = state.stream ?: return@LaunchedEffect
+        // A fresh stream retires whatever the previous episode was counting down to.
+        upNextSeconds = null
         controller.open(stream, state.startPositionMs, state.mediaMetadata(animeTitle))
         chrome.visible = true
     }
@@ -144,6 +153,18 @@ fun PlayerScreen(
         }
     }
 
+    // Up-next countdown: a second per tick, then the next episode loads itself at zero.
+    LaunchedEffect(upNextSeconds) {
+        val remaining = upNextSeconds ?: return@LaunchedEffect
+        if (remaining > 0) {
+            delay(UP_NEXT_TICK_MILLIS)
+            upNextSeconds = remaining - 1
+            return@LaunchedEffect
+        }
+        upNextSeconds = null
+        vm.nextEpisode()?.let(vm::load)
+    }
+
     LaunchedEffect(controller.textGroups, chrome.subtitleLanguage) {
         val language = chrome.subtitleLanguage
         if (language == null) {
@@ -186,7 +207,9 @@ fun PlayerScreen(
 
                         ScreenZone.Center -> controller.togglePlayPause()
                     }
-                }
+                },
+                onHoldStart = controller::beginSpeedBoost,
+                onHoldEnd = controller::endSpeedBoost
             )
     ) {
         PlayerSurface(controller, subtitleStyle, chrome.visible, Modifier.fillMaxSize())
@@ -246,6 +269,23 @@ fun PlayerScreen(
                     Alignment.CenterEnd
                 }
         )
+
+        SpeedBoostOverlay(controller.isSpeedBoosted)
+
+        val countdown = upNextSeconds
+        if (countdown != null) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                UpNextCard(
+                    secondsLeft = countdown,
+                    nextEpisode = vm.nextEpisode(),
+                    onPlayNow = {
+                        upNextSeconds = null
+                        vm.nextEpisode()?.let(vm::load)
+                    },
+                    onCancel = { upNextSeconds = null }
+                )
+            }
+        }
     }
 
     PlayerSheets(
@@ -290,6 +330,7 @@ private const val SEEK_FEEDBACK_MILLIS = 700L
 private const val PROGRESS_SAVE_MILLIS = 5_000L
 private const val CHROME_TIMEOUT_MILLIS = 4_000L
 private const val HUD_TIMEOUT_MILLIS = 800L
+private const val UP_NEXT_TICK_MILLIS = 1_000L
 
 /** Big translucent play/pause in the middle, like every other video app. */
 @Composable

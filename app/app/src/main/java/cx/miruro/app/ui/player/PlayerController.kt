@@ -3,6 +3,7 @@ package cx.miruro.app.ui.player
 import android.content.Context
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -42,8 +43,23 @@ internal class PlayerController(context: Context) {
     var videoAspectRatio by mutableStateOf(16f / 9f)
         private set
 
+    /** The speed picked in the Speed sheet, i.e. what playback returns to on release. */
+    var playbackSpeed: Float
+        get() = selectedSpeed
+        set(value) {
+            selectedSpeed = value
+            player.setPlaybackSpeed(if (isSpeedBoosted) BOOST_SPEED else value)
+        }
+    var isSpeedBoosted by mutableStateOf(false)
+        private set
+
     /** Return true when the failure was handled (e.g. switched to another source). */
     var onPlaybackFailure: (PlaybackException) -> Boolean = { false }
+
+    /** Called when playback reaches the end of the current item. */
+    var onPlaybackEnded: () -> Unit = {}
+
+    private var selectedSpeed by mutableFloatStateOf(NORMAL_SPEED)
 
     private val listener =
         object : Player.Listener {
@@ -52,8 +68,9 @@ internal class PlayerController(context: Context) {
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_READY) {
-                    durationMs = player.duration.coerceAtLeast(0L)
+                when (playbackState) {
+                    Player.STATE_READY -> durationMs = player.duration.coerceAtLeast(0L)
+                    Player.STATE_ENDED -> onPlaybackEnded()
                 }
             }
 
@@ -87,6 +104,9 @@ internal class PlayerController(context: Context) {
 
     fun open(stream: ResolvedStream, startAtMs: Long, metadata: MediaMetadata? = null) {
         lastError = null
+        // Every episode starts at normal speed, whatever the previous one was set to.
+        isSpeedBoosted = false
+        playbackSpeed = NORMAL_SPEED
         PlaybackDiagnostics.logSubtitles(stream)
         player.setMediaSource(MediaSources.create(stream, metadata))
         player.trackSelectionParameters =
@@ -122,6 +142,19 @@ internal class PlayerController(context: Context) {
 
     fun seekBy(deltaMs: Long) {
         seekTo(player.currentPosition + deltaMs)
+    }
+
+    /** Long press on the video: 2× until the finger lifts. */
+    fun beginSpeedBoost() {
+        if (isSpeedBoosted) return
+        isSpeedBoosted = true
+        player.setPlaybackSpeed(BOOST_SPEED)
+    }
+
+    fun endSpeedBoost() {
+        if (!isSpeedBoosted) return
+        isSpeedBoosted = false
+        player.setPlaybackSpeed(selectedSpeed)
     }
 
     fun useVideoGroup(group: Tracks.Group?) {
