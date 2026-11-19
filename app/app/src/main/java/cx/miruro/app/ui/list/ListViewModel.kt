@@ -48,7 +48,12 @@ data class ListUiState(
     val airings: Map<String, AiringEntry> = emptyMap()
 )
 
-class ListViewModel(private val api: MiruroApi, private val progress: ProgressStore) : ViewModel() {
+class ListViewModel(
+    private val api: MiruroApi,
+    private val progress: ProgressStore,
+    /** "MOVIE" for the Movies section: catalogue only, no episode-based Latest feed. */
+    private val catalogFormat: String? = null
+) : ViewModel() {
 
     private val _state = MutableStateFlow(ListUiState(continueItems = progress.continueWatching()))
     val state: StateFlow<ListUiState> = _state.asStateFlow()
@@ -155,13 +160,14 @@ class ListViewModel(private val api: MiruroApi, private val progress: ProgressSt
     }
 
     private suspend fun feedFor(snapshot: ListUiState, reset: Boolean): Feed =
-        if (usesLatestFeed(snapshot)) {
+        if (usesLatestFeed(snapshot) && catalogFormat == null) {
             if (reset || latestPool.isEmpty()) latestFirstPage() else nextLatestPage()
         } else {
             Feed(
                 api.catalog(
                     limit = PAGE_SIZE,
                     sort = if (snapshot.sort == SORT_LATEST) FALLBACK_SORT else snapshot.sort,
+                    format = catalogFormat,
                     q = snapshot.query.takeIf { it.isNotBlank() },
                     genres = listOfNotNull(snapshot.genre),
                     cursor = if (reset) null else cursor
