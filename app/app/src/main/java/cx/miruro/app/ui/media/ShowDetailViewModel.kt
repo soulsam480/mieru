@@ -130,7 +130,8 @@ class ShowDetailViewModel(
         _state.update { it.copy(resolving = true, resolveError = null, resolved = null) }
 
         viewModelScope.launch {
-            val providers = runCatching { api.embedProviders(mediaId, season, episode) }.getOrNull()
+            val providers =
+                runCatching { api.embedProviders(mediaId, kind, season, episode) }.getOrNull()
             if (providers.isNullOrEmpty()) {
                 _state.update { it.copy(resolving = false, resolveError = "No mirrors found") }
                 return@launch

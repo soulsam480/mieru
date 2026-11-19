@@ -85,7 +85,12 @@ class OneShowsApi {
      * Embed URLs for one episode, cheapest-first: the viduki mirrors gate on a captcha, so they go
      * last and usually fail without a human.
      */
-    suspend fun embedProviders(tvId: String, season: Int, episode: Int): List<EmbedProvider> {
+    suspend fun embedProviders(
+        mediaId: String,
+        kind: MediaKind,
+        season: Int,
+        episode: Int
+    ): List<EmbedProvider> {
         val feed =
             get(
                 url = "$PROVIDERS/embed_providers?site=1shows",
@@ -95,12 +100,14 @@ class OneShowsApi {
 
         return feed.providers
             .map { provider ->
+                val template =
+                    if (kind == MediaKind.MOVIE) provider.movie else provider.tv
                 EmbedProvider(
                     id = provider.id,
                     label = provider.label,
                     url =
-                        provider.tv
-                            .replace("{id}", tvId)
+                        template
+                            .replace("{id}", mediaId)
                             .replace("{s}", season.toString())
                             .replace("{e}", episode.toString())
                 )

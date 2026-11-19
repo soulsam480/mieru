@@ -37,7 +37,6 @@ import cx.miruro.app.ui.settings.SettingsScreen
 
 private const val ROUTE_ANIME = "anime"
 private const val ROUTE_SHOWS = "shows/{kind}"
-private const val ROUTE_MOVIES = "movies"
 private const val ROUTE_SHOW_DETAIL = "shows/{kind}/{id}?title={title}"
 private const val ROUTE_SETTINGS = "settings"
 private const val ROUTE_DETAIL = "detail/{id}?title={title}"
@@ -50,7 +49,7 @@ private val sections =
     listOf(
         Section(ROUTE_ANIME, "Anime", Icons.Filled.PlayArrow),
         Section("shows/TV", "TV", Icons.AutoMirrored.Filled.List),
-        Section("movies", "Movies", Icons.Filled.Star)
+        Section("shows/MOVIE", "Movies", Icons.Filled.Star)
     )
 
 @Composable
@@ -58,7 +57,7 @@ fun MiruroNavHost(app: MiruroApp) {
     val nav = rememberNavController()
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route
-    val showSections = route == ROUTE_ANIME || route == ROUTE_SHOWS || route == ROUTE_MOVIES
+    val showSections = route == ROUTE_ANIME || route == ROUTE_SHOWS
 
     Scaffold(
         bottomBar = {
@@ -86,24 +85,6 @@ fun MiruroNavHost(app: MiruroApp) {
                 ListScreen(
                     api = app.api,
                     progress = app.progress,
-                    onOpenSettings = { nav.navigate(ROUTE_SETTINGS) },
-                    updates = app.updates,
-                    onOpenAnime = { anime ->
-                        nav.navigate("detail/${anime.id}?title=${Uri.encode(anime.title.best())}")
-                    },
-                    onResume = { item ->
-                        nav.navigate(
-                            "player/${item.animeId}/${item.episode}?title=${Uri.encode(item.title)}"
-                        )
-                    }
-                )
-            }
-
-            composable(ROUTE_MOVIES) {
-                ListScreen(
-                    api = app.api,
-                    progress = app.progress,
-                    catalogFormat = "MOVIE",
                     onOpenSettings = { nav.navigate(ROUTE_SETTINGS) },
                     updates = app.updates,
                     onOpenAnime = { anime ->

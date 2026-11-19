@@ -214,7 +214,12 @@ private const val UNTITLED = "Untitled"
 data class EmbedProvider(val id: String, val label: String, val url: String)
 
 @Serializable
-internal data class ProviderDto(val id: String = "", val label: String = "", val tv: String = "")
+internal data class ProviderDto(
+    val id: String = "",
+    val label: String = "",
+    val movie: String = "",
+    val tv: String = ""
+)
 
 @Serializable
 internal data class ProvidersDto(val providers: List<ProviderDto> = emptyList())

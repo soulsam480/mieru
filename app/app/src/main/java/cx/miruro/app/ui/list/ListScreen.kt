@@ -76,16 +76,12 @@ import cx.miruro.app.data.UpdateChecker
 fun ListScreen(
     api: MiruroApi,
     progress: ProgressStore,
-    catalogFormat: String? = null,
     onOpenAnime: (Anime) -> Unit,
     onResume: (ContinueItem) -> Unit,
     onOpenSettings: () -> Unit,
     updates: UpdateChecker
 ) {
-    val vm: ListViewModel = viewModel(key = "list-${catalogFormat ?: "all"}") {
-        ListViewModel(api, progress, catalogFormat)
-    }
-    val sorts = if (catalogFormat == null) SORTS else SORTS.filter { it.first != SORT_LATEST }
+    val vm: ListViewModel = viewModel { ListViewModel(api, progress) }
     val state by vm.state.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
 
@@ -167,10 +163,10 @@ fun ListScreen(
             )
 
             TabRow(
-                selectedTabIndex = sorts.indexOfFirst { it.first == state.sort }.coerceAtLeast(0),
+                selectedTabIndex = SORTS.indexOfFirst { it.first == state.sort }.coerceAtLeast(0),
                 containerColor = MaterialTheme.colorScheme.background
             ) {
-                sorts.forEach { (value, label) ->
+                SORTS.forEach { (value, label) ->
                     Tab(
                         selected = state.sort == value,
                         onClick = { vm.onSortChange(value) },
