@@ -48,6 +48,7 @@ import cx.miruro.app.data.SourceStore
 import cx.miruro.app.data.TrackPreference
 import cx.miruro.app.data.UpdateChecker
 import cx.miruro.app.data.UpdateInfo
+import cx.miruro.app.data.oneshows.OneShowsStore
 import kotlinx.coroutines.launch
 
 /** Sources, playback preference, and self-updates. Nothing else. */
@@ -59,6 +60,7 @@ fun SettingsScreen(
     updates: UpdateChecker,
     prefs: PlaybackPrefsStore,
     autoSkip: AutoSkipStore,
+    oneShowsSource: OneShowsStore,
     onBack: () -> Unit
 ) {
     var allSources by remember { mutableStateOf(sources.sources()) }
@@ -67,6 +69,9 @@ fun SettingsScreen(
     var newUrl by remember { mutableStateOf("") }
     var sourceStatus by remember { mutableStateOf<String?>(null) }
     var serverBusy by remember { mutableStateOf(false) }
+
+    var oneShowsUrl by remember { mutableStateOf(oneShowsSource.site()) }
+    var oneShowsStatus by remember { mutableStateOf<String?>(null) }
 
     var updateStatus by remember { mutableStateOf<String?>(null) }
     var pendingUpdate by remember { mutableStateOf<UpdateInfo?>(null) }
@@ -224,6 +229,46 @@ fun SettingsScreen(
             }
 
             Spacer(Modifier.height(14.dp))
+            SectionTitle("1shows (TV & Movies)")
+            Hint(
+                "Metadata and episode playback come from this site. Point it at a mirror when " +
+                    "the current host is blocked or goes down; the db. trending host is derived " +
+                    "from it."
+            )
+            OutlinedTextField(
+                value = oneShowsUrl,
+                onValueChange = {
+                    oneShowsUrl = it
+                    oneShowsStatus = null
+                },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Site URL") },
+                placeholder = { Text("https://www.1shows.org") },
+                singleLine = true
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = {
+                        oneShowsStatus =
+                            if (oneShowsSource.setSite(oneShowsUrl)) {
+                                oneShowsUrl = oneShowsSource.site()
+                                "Saved. New loads use this site."
+                            } else {
+                                "That is not a usable URL"
+                            }
+                    }
+                ) { Text("Save") }
+                TextButton(onClick = {
+                    oneShowsSource.reset()
+                    oneShowsUrl = oneShowsSource.site()
+                    oneShowsStatus = "Back to the default site"
+                }) { Text("Reset") }
+            }
+            oneShowsStatus?.let { Hint(it) }
+
             SectionTitle("Playback")
             Hint("Which audio track to pick when a source offers both.")
             var preference by remember { mutableStateOf(prefs.trackPreference()) }

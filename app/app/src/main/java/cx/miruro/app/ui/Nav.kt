@@ -232,6 +232,7 @@ fun MiruroNavHost(app: MiruroApp) {
                     updates = app.updates,
                     prefs = app.prefs,
                     autoSkip = app.autoSkip,
+                    oneShowsSource = app.oneShowsSource,
                     onBack = { nav.popBackStack() }
                 )
             }

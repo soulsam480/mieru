@@ -267,6 +267,17 @@ fun PlayerScreen(
             }
         }
 
+        // Hidden chrome still needs a spinner: a seek into an unbuffered spot looks frozen.
+        if (!chrome.visible && controller.isBuffering && state.stream != null) {
+            Box(Modifier.align(Alignment.Center)) {
+                CircularProgressIndicator(
+                    color = Color.White.copy(alpha = 0.85f),
+                    strokeWidth = 3.dp,
+                    modifier = Modifier.size(38.dp)
+                )
+            }
+        }
+
         val failure = state.error ?: controller.lastError
         if (failure != null && state.stream == null) {
             PlaybackFailure(
@@ -408,10 +419,17 @@ private fun PlayPauseButton(controller: PlayerController) {
             .clickable(onClick = controller::togglePlayPause),
         contentAlignment = Alignment.Center
     ) {
-        if (controller.isPlaying) {
-            PauseGlyph()
-        } else {
-            Icon(
+        when {
+            // A stalled decoder is not a paused video: show that it is loading.
+            controller.isBuffering -> CircularProgressIndicator(
+                color = Color.White,
+                strokeWidth = 3.dp,
+                modifier = Modifier.size(34.dp)
+            )
+
+            controller.isPlaying -> PauseGlyph()
+
+            else -> Icon(
                 Icons.Filled.PlayArrow,
                 contentDescription = "Play",
                 tint = Color.White,

@@ -2,6 +2,9 @@ package cx.miruro.app.data
 
 import java.io.File
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
@@ -23,6 +26,10 @@ class ProgressStore(file: File) {
 
     private var loaded = false
     private var data = ProgressData()
+
+    /** Bumped on every write so a screen showing "Continue watching" can refresh itself. */
+    private val _revision = MutableStateFlow(0)
+    val revision: StateFlow<Int> = _revision.asStateFlow()
 
     private fun ensureLoaded() {
         synchronized(lock) {
@@ -109,6 +116,7 @@ class ProgressStore(file: File) {
         }
 
         persist()
+        _revision.value++
     }
 
     private fun persist() {

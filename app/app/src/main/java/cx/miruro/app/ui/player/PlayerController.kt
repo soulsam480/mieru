@@ -30,6 +30,10 @@ internal class PlayerController(context: Context) {
 
     var isPlaying by mutableStateOf(false)
         private set
+
+    /** True while the decoder has nothing to show: the spinner, not a play glyph. */
+    var isBuffering by mutableStateOf(true)
+        private set
     var positionMs by mutableLongStateOf(0L)
         private set
     var durationMs by mutableLongStateOf(0L)
@@ -68,6 +72,9 @@ internal class PlayerController(context: Context) {
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
+                isBuffering =
+                    playbackState == Player.STATE_BUFFERING ||
+                    playbackState == Player.STATE_IDLE
                 when (playbackState) {
                     Player.STATE_READY -> durationMs = player.duration.coerceAtLeast(0L)
                     Player.STATE_ENDED -> onPlaybackEnded()

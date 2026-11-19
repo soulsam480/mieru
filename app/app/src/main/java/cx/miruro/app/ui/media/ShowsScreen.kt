@@ -36,11 +36,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -50,8 +47,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
@@ -73,10 +68,9 @@ fun ShowsScreen(
     val vm: ShowsViewModel = viewModel(key = "shows-${kind.name}") { ShowsViewModel(api, kind) }
     val state by vm.state.collectAsStateWithLifecycle()
 
-    var continueItems by remember { mutableStateOf(progress.continueWatching(kind.name)) }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        continueItems = progress.continueWatching(kind.name)
-    }
+    // Recomputed whenever anything is watched, so coming back from the player shows the new row.
+    val progressRevision by progress.revision.collectAsStateWithLifecycle()
+    val continueItems = remember(progressRevision, kind) { progress.continueWatching(kind.name) }
 
     Scaffold(
         topBar = {

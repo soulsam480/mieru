@@ -17,14 +17,17 @@ import okhttp3.Request
  * Metadata for the 1shows catalogue. Its own client: the site rejects requests that do not look
  * same-origin, and the Miruro interceptor would point its Referer at the wrong host.
  */
-class OneShowsApi {
+class OneShowsApi(private val siteUrl: () -> String = { OneShowsStore.DEFAULT_SITE }) {
+
+    private val site: String get() = siteUrl().trimEnd('/')
+    private val database: String get() = OneShowsStore.deriveDatabase(site)
 
     private val client =
         OkHttpClient.Builder()
             .addInterceptor { chain ->
                 chain.proceed(
                     chain.request().newBuilder()
-                        .header("Referer", "$SITE/")
+                        .header("Referer", "$site/")
                         .header("Accept", "application/json")
                         .header("User-Agent", Http.UA)
                         .build()
@@ -47,7 +50,7 @@ class OneShowsApi {
                 MediaKind.MOVIE -> "movies"
                 MediaKind.ANIME -> return emptyList()
             }
-        val ids = get("$DB/api/management/trending/$feed", TrendingDto.serializer()).tmdbIds
+        val ids = get("$database/api/management/trending/$feed", TrendingDto.serializer()).tmdbIds
 
         return coroutineScope {
             ids.distinct()
@@ -62,15 +65,15 @@ class OneShowsApi {
         if (trimmed.isEmpty()) return emptyList()
 
         val page =
-            get("$SITE/api/search/query", SearchDto.serializer(), mapOf("query" to trimmed))
+            get("$site/api/search/query", SearchDto.serializer(), mapOf("query" to trimmed))
         return page.results.mapNotNull { it.toCard() }
     }
 
     suspend fun detail(id: String, kind: MediaKind): MediaDetail = when (kind) {
-        MediaKind.TV -> get("$SITE/api/tv/$id", TvDetailDto.serializer()).toDetail(id)
+        MediaKind.TV -> get("$site/api/tv/$id", TvDetailDto.serializer()).toDetail(id)
 
         MediaKind.MOVIE ->
-            get("$SITE/api/movie/$id", MovieDetailDto.serializer()).toDetail(id)
+            get("$site/api/movie/$id", MovieDetailDto.serializer()).toDetail(id)
 
         MediaKind.ANIME -> throw IllegalArgumentException("1shows has no anime catalogue")
     }
@@ -84,14 +87,14 @@ class OneShowsApi {
                 MediaKind.ANIME -> return null
             }
         return runCatching {
-            get("$SITE/api/$feed/$id/external_ids", ExternalIdsDto.serializer()).imdbId
+            get("$site/api/$feed/$id/external_ids", ExternalIdsDto.serializer()).imdbId
         }
             .getOrNull()
             ?.takeIf { it.startsWith("tt") }
     }
 
     suspend fun season(tvId: String, seasonNumber: Int): List<MediaEpisode> =
-        get("$SITE/api/tv/$tvId/season/$seasonNumber", SeasonDetailDto.serializer())
+        get("$site/api/tv/$tvId/season/$seasonNumber", SeasonDetailDto.serializer())
             .episodes
             .map { it.toEpisode() }
             .sortedBy { it.number }
@@ -110,7 +113,7 @@ class OneShowsApi {
             get(
                 url = "$PROVIDERS/embed_providers?site=1shows",
                 serializer = ProvidersDto.serializer(),
-                extraHeaders = mapOf("Origin" to "$SITE")
+                extraHeaders = mapOf("Origin" to site)
             )
 
         return feed.providers
@@ -156,9 +159,7 @@ class OneShowsApi {
     }
 
     private companion object {
-        const val SITE = "https://www.1shows.org"
         const val PROVIDERS = "https://api.viduki.net"
-        const val DB = "https://db.1shows.org"
         const val TIMEOUT_SECONDS = 20L
     }
 }
