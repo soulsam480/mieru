@@ -64,7 +64,6 @@ import cx.miruro.app.data.oneshows.SeasonInfo
 @Composable
 fun ShowDetailScreen(
     api: OneShowsApi,
-    resolver: EmbedResolver,
     mediaId: String,
     kind: MediaKind,
     fallbackTitle: String,
@@ -73,11 +72,12 @@ fun ShowDetailScreen(
 ) {
     val vm: ShowDetailViewModel =
         viewModel(key = "media-detail-${kind.name}-$mediaId") {
-            ShowDetailViewModel(api, kind, resolver)
+            ShowDetailViewModel(api, kind)
         }
 
     LaunchedEffect(mediaId) { vm.load(mediaId) }
     val state by vm.state.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
     val detail = state.detail
 
     val resolved = state.resolved
@@ -161,7 +161,7 @@ fun ShowDetailScreen(
                             onResolve = {
                                 val season = state.selectedSeason ?: 1
                                 val episode = state.episodes.firstOrNull()?.number ?: 1
-                                vm.resolvePlayback(season, episode)
+                                vm.resolvePlayback(context, season, episode)
                             }
                         )
                     }

@@ -124,18 +124,5 @@ fun DirectPlayerScreen(
                 }
             }
         }
-
-        Box(
-            modifier =
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 24.dp)
-                    .clickable { controller.togglePlayPause() },
-            contentAlignment = Alignment.Center
-        ) {
-            if (!controller.isPlaying) {
-                CircularProgressIndicator(color = Color.White.copy(alpha = 0.5f))
-            }
-        }
     }
 }

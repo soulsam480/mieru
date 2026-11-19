@@ -30,11 +30,9 @@ data class ShowDetailUiState(
     val resolveError: String? = null
 )
 
-class ShowDetailViewModel(
-    private val api: OneShowsApi,
-    private val kind: MediaKind,
-    private val resolver: EmbedResolver
-) : ViewModel() {
+class ShowDetailViewModel(private val api: OneShowsApi, private val kind: MediaKind) : ViewModel() {
+
+    private val resolver = EmbedResolver()
 
     private val _state = MutableStateFlow(ShowDetailUiState())
     val state: StateFlow<ShowDetailUiState> = _state.asStateFlow()
@@ -125,7 +123,7 @@ class ShowDetailViewModel(
     }
 
     /** Tries each mirror in order until one page hands back a playlist. */
-    fun resolvePlayback(season: Int, episode: Int) {
+    fun resolvePlayback(context: android.content.Context, season: Int, episode: Int) {
         if (_state.value.resolving) return
         _state.update { it.copy(resolving = true, resolveError = null, resolved = null) }
 
@@ -139,7 +137,7 @@ class ShowDetailViewModel(
 
             var failure = "No mirror returned a playlist"
             for (provider in providers) {
-                val stream = resolver.resolve(provider.url)
+                val stream = resolver.resolve(context, provider.url)
                 if (stream != null) {
                     _state.update { it.copy(resolving = false, resolved = stream) }
                     return@launch

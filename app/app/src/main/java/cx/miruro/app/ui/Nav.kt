@@ -1,6 +1,7 @@
 package cx.miruro.app.ui
 
 import android.net.Uri
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -14,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -58,15 +60,24 @@ fun MiruroNavHost(app: MiruroApp) {
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route
     val showSections = route == ROUTE_ANIME || route == ROUTE_SHOWS
+    val currentKind = entry?.arguments?.getString("kind")
+    val selectedSection =
+        when {
+            route == ROUTE_ANIME -> ROUTE_ANIME
+            route == ROUTE_SHOWS && currentKind == "MOVIE" -> "shows/MOVIE"
+            route == ROUTE_SHOWS -> "shows/TV"
+            else -> null
+        }
 
     Scaffold(
+        // The inner screens own the status bar inset; this scaffold only reserves room for tabs.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (showSections) {
                 NavigationBar {
                     sections.forEach { section ->
                         NavigationBarItem(
-                            selected = route == section.route ||
-                                (section.route == ROUTE_SHOWS && route == ROUTE_SHOWS),
+                            selected = section.route == selectedSection,
                             onClick = { nav.switchSection(section.route) },
                             icon = { Icon(section.icon, contentDescription = null) },
                             label = { Text(section.label) }
@@ -79,7 +90,7 @@ fun MiruroNavHost(app: MiruroApp) {
         NavHost(
             navController = nav,
             startDestination = ROUTE_ANIME,
-            modifier = Modifier.padding(padding)
+            modifier = Modifier.padding(bottom = padding.calculateBottomPadding())
         ) {
             composable(ROUTE_ANIME) {
                 ListScreen(
@@ -127,7 +138,6 @@ fun MiruroNavHost(app: MiruroApp) {
             ) { backStackEntry ->
                 ShowDetailScreen(
                     api = app.oneShows,
-                    resolver = app.embed,
                     mediaId = backStackEntry.arguments?.getString("id").orEmpty(),
                     kind = kindOf(backStackEntry.arguments?.getString("kind")),
                     fallbackTitle = backStackEntry.arguments?.getString("title").orEmpty(),
@@ -140,7 +150,9 @@ fun MiruroNavHost(app: MiruroApp) {
             }
 
             composable(ROUTE_EMBED_PLAYER) {
-                val pending = PendingPlayback.take()
+                // Remembered: reading it per-composition would consume it on the first recompose
+                // and bounce straight back.
+                val pending = remember { PendingPlayback.take() }
                 if (pending == null) {
                     LaunchedEffect(Unit) { nav.popBackStack() }
                 } else {
