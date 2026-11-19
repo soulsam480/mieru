@@ -104,4 +104,9 @@ private val ContinueItem.watchedFraction: Float
         if (durationMs > 0L) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
 
 private val ContinueItem.episodeLabel: String
-    get() = if (season > 0) "S$season E$episode" else "EP $episode"
+    get() =
+        when {
+            kind == "MOVIE" -> "Movie"
+            season > 0 -> "S$season E$episode"
+            else -> "EP $episode"
+        }

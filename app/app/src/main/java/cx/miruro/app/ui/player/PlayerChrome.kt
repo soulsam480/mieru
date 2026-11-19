@@ -62,10 +62,11 @@ internal class PlayerChromeState {
     var subtitleLanguage by mutableStateOf<String?>(DEFAULT_SUBTITLE_LANGUAGE)
 
     /**
-     * The track the viewer picked. Several tracks can share a language, so selection is the group
-     * and index, never the language name.
+     * The track the viewer picked, as track-group id and index: ExoPlayer rebuilds the group
+     * objects as tracks change, so identity cannot be the marker. Several tracks share a language,
+     * which is why the language name is not either.
      */
-    var selectedText by mutableStateOf<Pair<Tracks.Group, Int>?>(null)
+    var selectedText by mutableStateOf<Pair<String, Int>?>(null)
     var qualityLabel by mutableStateOf<String?>(null)
 }
 
@@ -242,16 +243,12 @@ internal fun PlayerSheets(
                             label = label,
                             supporting = format.language,
                             selected =
-                                chrome.selectedText?.let {
-                                    it.first === group && it.second == index
-                                }
-                                    ?: chrome.subtitleLanguage.equals(
-                                        format.language,
-                                        ignoreCase = true
-                                    ),
+                                chrome.selectedText?.let { (groupId, picked) ->
+                                    group.mediaTrackGroup.id == groupId && picked == index
+                                } ?: chrome.subtitleLanguage.equals(format.language, true),
                             onClick = {
                                 chrome.subtitleLanguage = format.language ?: label
-                                chrome.selectedText = group to index
+                                chrome.selectedText = group.mediaTrackGroup.id to index
                                 controller.useTextGroup(group, index)
                                 dismiss()
                             }

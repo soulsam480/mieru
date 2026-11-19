@@ -55,6 +55,9 @@ class ShowDetailViewModel(private val api: OneShowsApi, private val kind: MediaK
 
     private var mediaId = ""
     private var imdbIdCache: String? = null
+
+    /** "Continue watching" may only auto-play once per visit, or Back would re-enter the player. */
+    private var resumeHandled = false
     private var detailJob: Job? = null
     private var seasonJob: Job? = null
 
@@ -248,6 +251,13 @@ class ShowDetailViewModel(private val api: OneShowsApi, private val kind: MediaK
                 episode = forEpisode
             )
         return tracks
+    }
+
+    fun resumeOnce(context: android.content.Context, target: ResumeTarget) {
+        if (resumeHandled) return
+        resumeHandled = true
+        if (kind == MediaKind.TV) selectSeason(target.season)
+        resolvePlayback(context, target.season, target.episode, target.startMs)
     }
 
     fun consumeResolved() {

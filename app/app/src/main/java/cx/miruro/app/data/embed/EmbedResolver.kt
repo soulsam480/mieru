@@ -59,24 +59,31 @@ class EmbedResolver {
                     settings.userAgentString = USER_AGENT
                 }
 
+            val main = Handler(Looper.getMainLooper())
+            var timeout: Runnable? = null
+
             fun finish(result: ResolvedEmbed?) {
                 if (finished) return
                 finished = true
-                Log.d(
-                    TAG,
-                    if (result == null) {
-                        "resolve timeout"
-                    } else {
-                        "resolve ok host=" +
-                            result.url.substringAfter("//").substringBefore("/")
+                // Cancellation can arrive on any thread; WebView teardown cannot.
+                timeout?.let(main::removeCallbacks)
+                main.post {
+                    Log.d(
+                        TAG,
+                        if (result == null) {
+                            "resolve timeout"
+                        } else {
+                            "resolve ok host=" +
+                                result.url.substringAfter("//").substringBefore("/")
+                        }
+                    )
+                    runCatching {
+                        root?.removeView(web)
+                        web.stopLoading()
+                        web.destroy()
                     }
-                )
-                runCatching {
-                    root?.removeView(web)
-                    web.stopLoading()
-                    web.destroy()
+                    if (continuation.isActive) continuation.resumeWith(Result.success(result))
                 }
-                if (continuation.isActive) continuation.resumeWith(Result.success(result))
             }
 
             web.webViewClient =
@@ -109,7 +116,8 @@ class EmbedResolver {
             runCatching { root?.addView(web, ViewGroup.LayoutParams(2, 2)) }
                 .onFailure { Log.w(TAG, "attach failed: ${it.message}") }
 
-            Handler(Looper.getMainLooper()).postDelayed({ finish(null) }, timeoutMs)
+            timeout = Runnable { finish(null) }
+            main.postDelayed(timeout, timeoutMs)
             continuation.invokeOnCancellation { finish(null) }
             web.loadUrl(embedUrl)
         }

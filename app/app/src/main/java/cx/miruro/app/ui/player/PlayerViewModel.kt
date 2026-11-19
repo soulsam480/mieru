@@ -47,26 +47,24 @@ class PlayerViewModel(
     /** A stream already resolved elsewhere (an embed page, say): nothing to look up. */
     private val direct: PlaybackRequest? = null
 ) : ViewModel() {
-    private val directStream: ResolvedStream? = direct?.let { it.stream.asStream(it.subtitles) }
     private val _state =
         MutableStateFlow(
-            if (direct == null) {
-                PlayerUiState(episode = startEpisode)
-            } else {
+            direct?.let { request ->
                 PlayerUiState(
-                    episode = direct.episode,
+                    episode = request.episode,
                     options =
                         listOf(
                             StreamOption(
                                 track = "embed",
-                                label = direct.stream.provider,
-                                stream = directStream ?: direct.stream.asStream()
+                                label = request.stream.provider,
+                                stream = request.stream.asStream(request.subtitles)
                             )
                         ),
-                    startPositionMs = direct.startMs,
+                    startPositionMs = request.startMs,
                     loading = false
                 )
             }
+                ?: PlayerUiState(episode = startEpisode)
         )
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
 

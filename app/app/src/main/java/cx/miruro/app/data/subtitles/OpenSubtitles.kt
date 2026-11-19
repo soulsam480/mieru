@@ -87,7 +87,6 @@ object OpenSubtitles {
         @SerialName("subtitleFileName") val fileName: String = ""
     )
 
-    private const val TAG = "OpenSubtitles"
     private const val BASE = "https://opensubtitles-v3.strem.io"
     private const val TIMEOUT_SECONDS = 12L
     private const val MAX_TRACKS = 40

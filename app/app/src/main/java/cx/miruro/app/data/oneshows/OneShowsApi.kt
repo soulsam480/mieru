@@ -130,7 +130,7 @@ class OneShowsApi(private val siteUrl: () -> String = { OneShowsStore.DEFAULT_SI
                             .replace("{e}", episode.toString())
                 )
             }
-            .sortedBy { if (it.url.contains("viduki.net")) 1 else 0 }
+            .sortedBy { it.url.contains(CAPTCHA_HOST) }
     }
 
     private suspend fun <T> get(
@@ -160,6 +160,9 @@ class OneShowsApi(private val siteUrl: () -> String = { OneShowsStore.DEFAULT_SI
 
     private companion object {
         const val PROVIDERS = "https://api.viduki.net"
+
+        /** These mirrors gate on a captcha and need a human, so they go last. */
+        const val CAPTCHA_HOST = "viduki.net"
         const val TIMEOUT_SECONDS = 20L
     }
 }

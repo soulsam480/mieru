@@ -41,6 +41,14 @@ class ProgressStore(file: File) {
                 } else {
                     ProgressData()
                 }
+            // Recents used to be keyed by media id alone. Re-key once so an upgrading install does
+            // not keep a stale card next to every show it starts watching again.
+            data =
+                data.copy(
+                    recents = data.recents.mapKeys { (_, item) ->
+                        "${item.kind}:${item.animeId}"
+                    }
+                )
             loaded = true
         }
     }

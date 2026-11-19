@@ -65,6 +65,27 @@ class MediaProgressTest {
     }
 
     @Test
+    fun recents_written_before_sections_existed_are_re_keyed() = runBlocking {
+        val file = tempFile("progress.json")
+        // The shape the previous release wrote: recents keyed by media id, no kind, no season.
+        val legacy =
+            "{\"episodes\":{},\"recents\":{\"abc\":{\"animeId\":\"abc\"," +
+                "\"title\":\"Old Show\",\"episode\":2,\"positionMs\":1000," +
+                "\"durationMs\":9000,\"updatedAt\":1}}}"
+        file.writeText(legacy)
+
+        val store = ProgressStore(file)
+        assertEquals(1, store.continueWatching().size)
+
+        store.record("abc", "Old Show", null, episode = 3, positionMs = 2_000, durationMs = 9_000)
+
+        // One card, not a stale one next to the new one.
+        val items = store.continueWatching()
+        assertEquals(1, items.size)
+        assertEquals(3, items.single().episode)
+    }
+
+    @Test
     fun a_finished_episode_leaves_the_row() = runBlocking {
         val store = ProgressStore(tempFile("progress.json"))
         store.record("movie-1", "Film", null, 1, 9_500, 10_000, kind = "MOVIE")

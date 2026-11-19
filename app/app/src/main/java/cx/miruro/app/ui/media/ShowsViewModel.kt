@@ -58,7 +58,14 @@ class ShowsViewModel(private val api: OneShowsApi, private val kind: MediaKind) 
 
         loadJob =
             viewModelScope.launch {
-                runCatching { if (query.isEmpty()) api.trending(kind) else api.search(query) }
+                runCatching {
+                    if (query.isEmpty()) {
+                        api.trending(kind)
+                    } else {
+                        // The search index is shared, so a TV tab can match a film.
+                        api.search(query).filter { it.kind == kind }
+                    }
+                }
                     .onSuccess { items ->
                         _state.update { it.copy(items = items, loading = false, error = null) }
                     }

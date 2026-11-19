@@ -107,11 +107,11 @@ fun ShowDetailScreen(
         }
     }
 
-    // Tapped from Continue watching: land on the right season and pick up where it stopped.
+    // Tapped from Continue watching: land on the right season and pick up where it stopped. The
+    // ViewModel makes this one-shot so returning from the player does not immediately replay.
     LaunchedEffect(detail?.id, resume) {
         if (detail == null || resume == null) return@LaunchedEffect
-        vm.selectSeason(resume.season)
-        vm.resolvePlayback(context, resume.season, resume.episode, resume.startMs)
+        vm.resumeOnce(context, resume)
     }
 
     Scaffold(
@@ -186,7 +186,8 @@ fun ShowDetailScreen(
                                 resolving = state.resolving,
                                 error = state.resolveError,
                                 onResolve = {
-                                    vm.resolvePlayback(context, season = 1, episode = 1)
+                                    // A film has no season; 0 keeps "Continue watching" honest.
+                                    vm.resolvePlayback(context, season = 0, episode = 1)
                                 },
                                 label = "Play movie"
                             )

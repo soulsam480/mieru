@@ -95,7 +95,7 @@ fun PlayerScreen(
         PlaybackDiagnostics.attach(controller.player)
         controller.onPlaybackFailure = {
             // A cached embed URL that gets refused is stale: ask the mirror again next time.
-            if (direct != null) ResolvedPlaybackCache.clear()
+            direct?.let { ResolvedPlaybackCache.remove(it.cacheKey) }
             vm.nextOptionOnFailure()
         }
         controller.onPlaybackEnded = {

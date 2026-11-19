@@ -54,8 +54,8 @@ object ResolvedPlaybackCache {
             )
     }
 
-    /** Called when a playlist is refused: whatever was cached is what got refused. */
-    fun clear() {
-        entries.clear()
+    /** A refused playlist is stale for that episode only; other titles keep their resolves. */
+    fun remove(key: Key) {
+        entries.remove(key)
     }
 }

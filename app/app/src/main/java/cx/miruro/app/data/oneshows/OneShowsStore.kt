@@ -23,25 +23,16 @@ class OneShowsStore(private val file: File) {
     private var loaded = false
     private var config = OneShowsConfig()
 
-    /** Bumped on every change so screens know their data is stale. */
-    @Volatile
-    var revision: Int = 0
-        private set
-
     fun site(): String = synchronized(lock) {
         ensureLoaded()
         config.site.ifBlank { DEFAULT_SITE }
     }
-
-    /** The trending host for a site: `db.` in front of the site's own name. */
-    fun database(): String = deriveDatabase(site())
 
     /** Returns false for anything that is not a usable http(s) base. */
     fun setSite(url: String): Boolean = synchronized(lock) {
         ensureLoaded()
         val normalized = normalize(url) ?: return false
         config = OneShowsConfig(normalized)
-        revision++
         persist()
         true
     }
@@ -49,7 +40,6 @@ class OneShowsStore(private val file: File) {
     fun reset() = synchronized(lock) {
         ensureLoaded()
         config = OneShowsConfig()
-        revision++
         persist()
     }
 

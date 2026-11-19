@@ -16,7 +16,7 @@ class OneShowsStoreTest {
         val store = OneShowsStore(tempFile("oneshows.json"))
 
         assertEquals("https://www.1shows.org", store.site())
-        assertEquals("https://db.1shows.org", store.database())
+        assertEquals("https://db.1shows.org", OneShowsStore.deriveDatabase(store.site()))
     }
 
     @Test
@@ -26,7 +26,7 @@ class OneShowsStoreTest {
 
         assertEquals(true, store.setSite("1shows.example.org"))
         assertEquals("https://1shows.example.org", store.site())
-        assertEquals("https://db.1shows.example.org", store.database())
+        assertEquals("https://db.1shows.example.org", OneShowsStore.deriveDatabase(store.site()))
         // a fresh store reads the same file
         assertEquals("https://1shows.example.org", OneShowsStore(file).site())
     }
