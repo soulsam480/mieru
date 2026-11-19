@@ -2,6 +2,8 @@ package cx.miruro.app.ui.media
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import cx.miruro.app.data.embed.EmbedResolver
+import cx.miruro.app.data.embed.ResolvedEmbed
 import cx.miruro.app.data.oneshows.MediaDetail
 import cx.miruro.app.data.oneshows.MediaEpisode
 import cx.miruro.app.data.oneshows.MediaKind
@@ -22,10 +24,17 @@ data class ShowDetailUiState(
     val loading: Boolean = true,
     val episodesLoading: Boolean = false,
     val error: String? = null,
-    val episodesError: String? = null
+    val episodesError: String? = null,
+    val resolving: Boolean = false,
+    val resolved: ResolvedEmbed? = null,
+    val resolveError: String? = null
 )
 
-class ShowDetailViewModel(private val api: OneShowsApi, private val kind: MediaKind) : ViewModel() {
+class ShowDetailViewModel(
+    private val api: OneShowsApi,
+    private val kind: MediaKind,
+    private val resolver: EmbedResolver
+) : ViewModel() {
 
     private val _state = MutableStateFlow(ShowDetailUiState())
     val state: StateFlow<ShowDetailUiState> = _state.asStateFlow()
@@ -114,11 +123,41 @@ class ShowDetailViewModel(private val api: OneShowsApi, private val kind: MediaK
                     }
             }
     }
+
+    /** Tries each mirror in order until one page hands back a playlist. */
+    fun resolvePlayback(season: Int, episode: Int) {
+        if (_state.value.resolving) return
+        _state.update { it.copy(resolving = true, resolveError = null, resolved = null) }
+
+        viewModelScope.launch {
+            val providers = runCatching { api.embedProviders(mediaId, season, episode) }.getOrNull()
+            if (providers.isNullOrEmpty()) {
+                _state.update { it.copy(resolving = false, resolveError = "No mirrors found") }
+                return@launch
+            }
+
+            var failure = "No mirror returned a playlist"
+            for (provider in providers) {
+                val stream = resolver.resolve(provider.url)
+                if (stream != null) {
+                    _state.update { it.copy(resolving = false, resolved = stream) }
+                    return@launch
+                }
+                failure = "${provider.label} did not return a playlist"
+            }
+            _state.update { it.copy(resolving = false, resolveError = failure) }
+        }
+    }
+
+    fun consumeResolved() {
+        _state.update { it.copy(resolved = null) }
+    }
 }
 
 /**
- * Season 1 when it has episodes; otherwise the first season that does. TMDB puts specials in
- * season 0, and some entries ship empty placeholder seasons.
+ * Season 1 when it has episodes
+ *
+ * Season 0 holds specials and some entries ship empty placeholder seasons.
  */
 internal fun defaultSeason(seasons: List<SeasonInfo>): SeasonInfo? =
     seasons.firstOrNull { it.number == 1 && it.episodeCount > 0 }

@@ -9,6 +9,7 @@ import cx.miruro.app.data.ProgressStore
 import cx.miruro.app.data.SourceStore
 import cx.miruro.app.data.StyleStore
 import cx.miruro.app.data.UpdateChecker
+import cx.miruro.app.data.embed.EmbedResolver
 import cx.miruro.app.data.oneshows.OneShowsApi
 import java.io.File
 
@@ -21,6 +22,8 @@ class MiruroApp : Application() {
     lateinit var api: MiruroApi
         private set
     lateinit var oneShows: OneShowsApi
+        private set
+    lateinit var embed: EmbedResolver
         private set
     lateinit var progress: ProgressStore
         private set
@@ -40,6 +43,7 @@ class MiruroApp : Application() {
             )
         api = MiruroApi(sources)
         oneShows = OneShowsApi()
+        embed = EmbedResolver(this)
         progress = ProgressStore(File(filesDir, "progress.json"))
         styles = StyleStore(File(filesDir, "subtitle-style.json"))
         prefs = PlaybackPrefsStore(File(filesDir, "track-preference.txt"))

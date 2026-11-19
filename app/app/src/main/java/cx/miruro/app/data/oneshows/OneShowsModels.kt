@@ -209,3 +209,12 @@ private fun yearOf(date: String?): Int? = date?.take(4)?.toIntOrNull()
 
 private const val IMAGES = "https://image.tmdb.org/t/p"
 private const val UNTITLED = "Untitled"
+
+/** One embed mirror for an episode. */
+data class EmbedProvider(val id: String, val label: String, val url: String)
+
+@Serializable
+internal data class ProviderDto(val id: String = "", val label: String = "", val tv: String = "")
+
+@Serializable
+internal data class ProvidersDto(val providers: List<ProviderDto> = emptyList())

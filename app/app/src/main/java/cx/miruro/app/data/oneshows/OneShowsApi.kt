@@ -81,17 +81,50 @@ class OneShowsApi {
             .map { it.toEpisode() }
             .sortedBy { it.number }
 
+    /**
+     * Embed URLs for one episode, cheapest-first: the viduki mirrors gate on a captcha, so they go
+     * last and usually fail without a human.
+     */
+    suspend fun embedProviders(tvId: String, season: Int, episode: Int): List<EmbedProvider> {
+        val feed =
+            get(
+                url = "$PROVIDERS/embed_providers?site=1shows",
+                serializer = ProvidersDto.serializer(),
+                extraHeaders = mapOf("Origin" to "$SITE")
+            )
+
+        return feed.providers
+            .map { provider ->
+                EmbedProvider(
+                    id = provider.id,
+                    label = provider.label,
+                    url =
+                        provider.tv
+                            .replace("{id}", tvId)
+                            .replace("{s}", season.toString())
+                            .replace("{e}", episode.toString())
+                )
+            }
+            .sortedBy { if (it.url.contains("viduki.net")) 1 else 0 }
+    }
+
     private suspend fun <T> get(
         url: String,
         serializer: KSerializer<T>,
-        query: Map<String, String> = emptyMap()
+        query: Map<String, String> = emptyMap(),
+        extraHeaders: Map<String, String> = emptyMap()
     ): T = withContext(Dispatchers.IO) {
         val target =
             url.toHttpUrl().newBuilder().apply {
                 query.forEach { (key, value) -> addQueryParameter(key, value) }
             }.build()
 
-        client.newCall(Request.Builder().url(target).get().build()).execute().use { response ->
+        val request =
+            Request.Builder().url(target).get().apply {
+                extraHeaders.forEach { (name, value) -> header(name, value) }
+            }.build()
+
+        client.newCall(request).execute().use { response ->
             val bytes = response.body.bytes()
             if (!response.isSuccessful) {
                 throw ApiException(response.code, bytes.toString(Charsets.UTF_8).take(300))
@@ -102,6 +135,7 @@ class OneShowsApi {
 
     private companion object {
         const val SITE = "https://www.1shows.org"
+        const val PROVIDERS = "https://api.viduki.net"
         const val DB = "https://db.1shows.org"
         const val TIMEOUT_SECONDS = 20L
     }

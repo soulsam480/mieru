@@ -12,6 +12,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -24,11 +25,13 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import cx.miruro.app.MiruroApp
+import cx.miruro.app.data.embed.PendingPlayback
 import cx.miruro.app.data.oneshows.MediaKind
 import cx.miruro.app.ui.detail.DetailScreen
 import cx.miruro.app.ui.list.ListScreen
 import cx.miruro.app.ui.media.ShowDetailScreen
 import cx.miruro.app.ui.media.ShowsScreen
+import cx.miruro.app.ui.player.DirectPlayerScreen
 import cx.miruro.app.ui.player.PlayerScreen
 import cx.miruro.app.ui.settings.SettingsScreen
 
@@ -39,6 +42,7 @@ private const val ROUTE_SHOW_DETAIL = "shows/{kind}/{id}?title={title}"
 private const val ROUTE_SETTINGS = "settings"
 private const val ROUTE_DETAIL = "detail/{id}?title={title}"
 private const val ROUTE_PLAYER = "player/{id}/{ep}?title={title}"
+private const val ROUTE_EMBED_PLAYER = "embed-player"
 
 private data class Section(val route: String, val label: String, val icon: ImageVector)
 
@@ -142,11 +146,30 @@ fun MiruroNavHost(app: MiruroApp) {
             ) { backStackEntry ->
                 ShowDetailScreen(
                     api = app.oneShows,
+                    resolver = app.embed,
                     mediaId = backStackEntry.arguments?.getString("id").orEmpty(),
                     kind = kindOf(backStackEntry.arguments?.getString("kind")),
                     fallbackTitle = backStackEntry.arguments?.getString("title").orEmpty(),
-                    onBack = { nav.popBackStack() }
+                    onBack = { nav.popBackStack() },
+                    onPlay = { stream, title ->
+                        PendingPlayback.offer(stream, title)
+                        nav.navigate(ROUTE_EMBED_PLAYER)
+                    }
                 )
+            }
+
+            composable(ROUTE_EMBED_PLAYER) {
+                val pending = PendingPlayback.take()
+                if (pending == null) {
+                    LaunchedEffect(Unit) { nav.popBackStack() }
+                } else {
+                    DirectPlayerScreen(
+                        stream = pending.first,
+                        title = pending.second,
+                        style = app.styles.subtitleStyle(),
+                        onBack = { nav.popBackStack() }
+                    )
+                }
             }
 
             composable(ROUTE_SETTINGS) {

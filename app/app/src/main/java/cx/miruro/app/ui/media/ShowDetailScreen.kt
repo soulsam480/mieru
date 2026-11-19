@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
+import cx.miruro.app.data.embed.EmbedResolver
+import cx.miruro.app.data.embed.ResolvedEmbed
 import cx.miruro.app.data.oneshows.MediaDetail
 import cx.miruro.app.data.oneshows.MediaEpisode
 import cx.miruro.app.data.oneshows.MediaKind
@@ -61,17 +64,29 @@ import cx.miruro.app.data.oneshows.SeasonInfo
 @Composable
 fun ShowDetailScreen(
     api: OneShowsApi,
+    resolver: EmbedResolver,
     mediaId: String,
     kind: MediaKind,
     fallbackTitle: String,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onPlay: (ResolvedEmbed, String) -> Unit
 ) {
     val vm: ShowDetailViewModel =
-        viewModel(key = "media-detail-${kind.name}-$mediaId") { ShowDetailViewModel(api, kind) }
+        viewModel(key = "media-detail-${kind.name}-$mediaId") {
+            ShowDetailViewModel(api, kind, resolver)
+        }
 
     LaunchedEffect(mediaId) { vm.load(mediaId) }
     val state by vm.state.collectAsStateWithLifecycle()
     val detail = state.detail
+
+    val resolved = state.resolved
+    LaunchedEffect(resolved) {
+        if (resolved != null) {
+            onPlay(resolved, state.detail?.title ?: fallbackTitle)
+            vm.consumeResolved()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -139,7 +154,17 @@ fun ShowDetailScreen(
                         }
                     }
 
-                    item { PlaybackNotice() }
+                    item {
+                        PlaybackNotice(
+                            resolving = state.resolving,
+                            error = state.resolveError,
+                            onResolve = {
+                                val season = state.selectedSeason ?: 1
+                                val episode = state.episodes.firstOrNull()?.number ?: 1
+                                vm.resolvePlayback(season, episode)
+                            }
+                        )
+                    }
 
                     if (detail.kind == MediaKind.TV) {
                         if (detail.seasons.isNotEmpty()) {
@@ -286,17 +311,33 @@ private fun Header(detail: MediaDetail) {
     }
 }
 
-/** Playback is a separate piece of work, so the page says so instead of offering a dead button. */
+/**
+ * Resolves the episode through the provider mirrors, which run their own JavaScript in an
+ * offscreen WebView. The label names the failure so a dead mirror is visible.
+ */
 @Composable
-private fun PlaybackNotice() {
-    AssistChip(
-        onClick = {},
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        leadingIcon = {
-            Icon(Icons.Filled.Info, contentDescription = null, modifier = Modifier.size(16.dp))
-        },
-        label = { Text("Playback not available yet") }
-    )
+private fun PlaybackNotice(resolving: Boolean, error: String?, onResolve: () -> Unit) {
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+        AssistChip(
+            onClick = { if (!resolving) onResolve() },
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+            },
+            label = { Text(if (resolving) "Resolving…" else "Play episode") }
+        )
+        error?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+    }
 }
 
 @Composable
