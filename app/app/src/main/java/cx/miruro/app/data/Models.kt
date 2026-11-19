@@ -182,14 +182,18 @@ data class ContinueItem(
     val episode: Int = 1,
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
-    val updatedAt: Long = 0L
+    val updatedAt: Long = 0L,
+    /** 0 for anime, which has no seasons in its progress model. */
+    val season: Int = 0,
+    /** Anime, TV or MOVIE: which section's "Continue watching" row this belongs to. */
+    val kind: String = "ANIME"
 )
 
 @Serializable
 data class ProgressData(
-    /** key = "$animeId:$episodeNumber" */
+    /** key = "$mediaId:$episodeNumber", or "$mediaId:$season:$episode" when seasons exist */
     val episodes: Map<String, EpisodeProgress> = emptyMap(),
-    /** key = animeId, newest last-watched episode per show */
+    /** key = "$kind:$mediaId", newest last-watched episode per show */
     val recents: Map<String, ContinueItem> = emptyMap()
 )
 

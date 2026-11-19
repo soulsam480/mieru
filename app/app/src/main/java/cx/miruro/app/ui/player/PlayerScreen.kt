@@ -41,6 +41,8 @@ import cx.miruro.app.data.MiruroApi
 import cx.miruro.app.data.PlaybackPrefsStore
 import cx.miruro.app.data.ProgressStore
 import cx.miruro.app.data.StyleStore
+import cx.miruro.app.data.embed.PlaybackRequest
+import cx.miruro.app.data.embed.ResolvedPlaybackCache
 import cx.miruro.app.data.windowAt
 import kotlinx.coroutines.delay
 
@@ -55,10 +57,12 @@ fun PlayerScreen(
     animeTitle: String,
     startEpisode: Int,
     onBack: () -> Unit,
-    onOpenInfo: () -> Unit
+    onOpenInfo: (() -> Unit)? = null,
+    /** A stream resolved elsewhere (an embed page), played as-is with no catalogue lookups. */
+    direct: PlaybackRequest? = null
 ) {
     val vm: PlayerViewModel = viewModel {
-        PlayerViewModel(api, progress, prefs, animeId, animeTitle, startEpisode)
+        PlayerViewModel(api, progress, prefs, animeId, animeTitle, startEpisode, direct)
     }
     val state by vm.state.collectAsStateWithLifecycle()
 
@@ -89,7 +93,11 @@ fun PlayerScreen(
         view.keepScreenOn = true
         controller.attach()
         PlaybackDiagnostics.attach(controller.player)
-        controller.onPlaybackFailure = { vm.nextOptionOnFailure() }
+        controller.onPlaybackFailure = {
+            // A cached embed URL that gets refused is stale: ask the mirror again next time.
+            if (direct != null) ResolvedPlaybackCache.clear()
+            vm.nextOptionOnFailure()
+        }
         controller.onPlaybackEnded = {
             if (vm.nextEpisode() != null) {
                 upNextSeconds = upNextRemainingSeconds(elapsedTicks = 0)
@@ -111,7 +119,12 @@ fun PlayerScreen(
         val stream = state.stream ?: return@LaunchedEffect
         // A fresh stream retires whatever the previous episode was counting down to.
         upNextSeconds = null
-        controller.open(stream, state.startPositionMs, state.mediaMetadata(animeTitle))
+        chrome.selectedText = null
+        controller.open(
+            stream,
+            state.startPositionMs,
+            state.mediaMetadata(animeTitle, direct?.caption)
+        )
         chrome.visible = true
     }
 
@@ -120,6 +133,11 @@ fun PlayerScreen(
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
         controller.player.pause()
         gestures.releaseBrightness()
+    }
+
+    // Mirrors beyond the one playing arrive as extra sources, like anime's provider list.
+    LaunchedEffect(direct) {
+        if (direct != null) vm.collectSources(context)
     }
 
     LaunchedEffect(state.episode) {
@@ -190,6 +208,8 @@ fun PlayerScreen(
             controller.useTextGroup(null)
             return@LaunchedEffect
         }
+        // An explicit pick wins: it names one track, this loop only names a language.
+        if (chrome.selectedText != null) return@LaunchedEffect
 
         // Pick the track that matches the language, not track 0 of whatever group contains it:
         // HLS providers can pack every language into one group, which is how Arabic got selected
@@ -249,7 +269,14 @@ fun PlayerScreen(
 
         val failure = state.error ?: controller.lastError
         if (failure != null && state.stream == null) {
-            PlaybackFailure(message = failure, onRetry = { vm.load(state.episode) })
+            PlaybackFailure(
+                message = failure,
+                onRetry = if (direct == null) {
+                    { vm.load(state.episode) }
+                } else {
+                    null
+                }
+            )
         }
 
         if (chrome.visible) {
@@ -262,6 +289,7 @@ fun PlayerScreen(
                     title = animeTitle,
                     episode = state.episode,
                     provider = state.stream?.provider,
+                    caption = direct?.caption,
                     isFullscreen = isFullscreen,
                     onBack = onBack,
                     onPreviousEpisode = vm.previousEpisode()?.let { episode ->
@@ -343,7 +371,7 @@ fun PlayerScreen(
 }
 
 @Composable
-private fun PlaybackFailure(message: String, onRetry: () -> Unit) {
+private fun PlaybackFailure(message: String, onRetry: (() -> Unit)?) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -355,7 +383,7 @@ private fun PlaybackFailure(message: String, onRetry: () -> Unit) {
                 color = Color.White.copy(alpha = 0.65f),
                 style = MaterialTheme.typography.bodySmall
             )
-            TextButton(onClick = onRetry) { Text("Retry") }
+            if (onRetry != null) TextButton(onClick = onRetry) { Text("Retry") }
         }
     }
 }
@@ -394,8 +422,16 @@ private fun PlayPauseButton(controller: PlayerController) {
 }
 
 /** Title / subtitle / artwork for the notification-shade media controls. */
-private fun PlayerUiState.mediaMetadata(showTitle: String): androidx.media3.common.MediaMetadata {
-    val title = if (showTitle.isBlank()) "Episode $episode" else "$showTitle · EP $episode"
+private fun PlayerUiState.mediaMetadata(
+    showTitle: String,
+    caption: String?
+): androidx.media3.common.MediaMetadata {
+    val title =
+        when {
+            showTitle.isBlank() -> caption ?: "Episode $episode"
+            caption != null -> "$showTitle · $caption"
+            else -> "$showTitle · EP $episode"
+        }
     return androidx.media3.common.MediaMetadata.Builder()
         .setTitle(title)
         .setArtist(stream?.provider?.let { "Mieru · $it" } ?: "Mieru")

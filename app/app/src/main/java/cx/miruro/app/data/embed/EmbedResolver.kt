@@ -18,7 +18,12 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
 /** A playlist the embed page asked for, plus the headers it sent to get it. */
-data class ResolvedEmbed(val url: String, val headers: Map<String, String>)
+data class ResolvedEmbed(
+    val url: String,
+    val headers: Map<String, String>,
+    /** The mirror that served it, for the player caption. */
+    val provider: String
+)
 
 /**
  * Turns an embed page into a playable playlist by loading it in a WebView that is attached to the
@@ -31,6 +36,7 @@ class EmbedResolver {
     suspend fun resolve(
         context: Context,
         embedUrl: String,
+        provider: String,
         timeoutMs: Long = DEFAULT_TIMEOUT_MS
     ): ResolvedEmbed? = withContext(Dispatchers.Main) {
         val activity = context.findActivity()
@@ -86,7 +92,13 @@ class EmbedResolver {
                     ): WebResourceResponse? {
                         val url = request.url.toString()
                         if (isPlaylist(url)) {
-                            finish(ResolvedEmbed(url = url, headers = headersFor(request, url)))
+                            finish(
+                                ResolvedEmbed(
+                                    url = url,
+                                    headers = headersFor(request, url),
+                                    provider = provider
+                                )
+                            )
                         }
                         return null
                     }

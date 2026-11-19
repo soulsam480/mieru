@@ -75,6 +75,21 @@ class OneShowsApi {
         MediaKind.ANIME -> throw IllegalArgumentException("1shows has no anime catalogue")
     }
 
+    /** The IMDb id, which is how subtitle providers key their catalogues. */
+    suspend fun imdbId(id: String, kind: MediaKind): String? {
+        val feed =
+            when (kind) {
+                MediaKind.TV -> "tv"
+                MediaKind.MOVIE -> "movie"
+                MediaKind.ANIME -> return null
+            }
+        return runCatching {
+            get("$SITE/api/$feed/$id/external_ids", ExternalIdsDto.serializer()).imdbId
+        }
+            .getOrNull()
+            ?.takeIf { it.startsWith("tt") }
+    }
+
     suspend fun season(tvId: String, seasonNumber: Int): List<MediaEpisode> =
         get("$SITE/api/tv/$tvId/season/$seasonNumber", SeasonDetailDto.serializer())
             .episodes

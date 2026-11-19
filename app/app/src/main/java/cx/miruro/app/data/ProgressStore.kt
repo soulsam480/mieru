@@ -44,14 +44,18 @@ class ProgressStore(file: File) {
     }
 
     fun positionOf(animeId: String, episode: Int): Long =
-        snapshot().episodes[key(animeId, episode)]?.positionMs ?: 0L
+        snapshot().episodes[key(animeId, 0, episode)]?.positionMs ?: 0L
+
+    fun positionOf(mediaId: String, season: Int, episode: Int): Long =
+        snapshot().episodes[key(mediaId, season, episode)]?.positionMs ?: 0L
 
     fun progressOf(animeId: String, episode: Int): EpisodeProgress? =
-        snapshot().episodes[key(animeId, episode)]
+        snapshot().episodes[key(animeId, 0, episode)]
 
     /** Newest first, skipping anything essentially finished. */
-    fun continueWatching(limit: Int = 12): List<ContinueItem> = snapshot()
+    fun continueWatching(kind: String = ANIME, limit: Int = 12): List<ContinueItem> = snapshot()
         .recents.values
+        .filter { it.kind == kind }
         .filter { it.durationMs <= 0L || it.positionMs.toFloat() / it.durationMs < 0.95f }
         .sortedByDescending { it.updatedAt }
         .take(limit)
@@ -62,20 +66,26 @@ class ProgressStore(file: File) {
         cover: String?,
         episode: Int,
         positionMs: Long,
-        durationMs: Long
+        durationMs: Long,
+        season: Int = 0,
+        kind: String = ANIME
     ) = withContext(Dispatchers.IO) {
         ensureLoaded()
         val now = System.currentTimeMillis()
 
         synchronized(lock) {
             val episodes = data.episodes.toMutableMap()
-            episodes[key(animeId, episode)] = EpisodeProgress(positionMs, durationMs, now)
+            episodes[key(animeId, season, episode)] =
+                EpisodeProgress(positionMs, durationMs, now)
 
             val recents = data.recents.toMutableMap()
+            val entry = "$kind:$animeId"
             // Only move the "continue watching" pointer forward, never backwards.
-            val existing = recents[animeId]
-            if (existing == null || episode >= existing.episode) {
-                recents[animeId] =
+            val existing = recents[entry]
+            if (existing == null || season > existing.season ||
+                (season == existing.season && episode >= existing.episode)
+            ) {
+                recents[entry] =
                     ContinueItem(
                         animeId = animeId,
                         title = title,
@@ -83,7 +93,9 @@ class ProgressStore(file: File) {
                         episode = episode,
                         positionMs = positionMs,
                         durationMs = durationMs,
-                        updatedAt = now
+                        updatedAt = now,
+                        season = season,
+                        kind = kind
                     )
             }
 
@@ -111,5 +123,14 @@ class ProgressStore(file: File) {
         }
     }
 
-    private fun key(animeId: String, episode: Int) = "$animeId:$episode"
+    /**
+     * Anime keys predate seasons and are stored as "$id:$episode". Keeping that shape means an
+     * existing install keeps its resume positions.
+     */
+    private fun key(mediaId: String, season: Int, episode: Int) =
+        if (season > 0) "$mediaId:$season:$episode" else "$mediaId:$episode"
+
+    private companion object {
+        const val ANIME = "ANIME"
+    }
 }

@@ -214,6 +214,9 @@ private const val UNTITLED = "Untitled"
 data class EmbedProvider(val id: String, val label: String, val url: String)
 
 @Serializable
+internal data class ExternalIdsDto(@SerialName("imdb_id") val imdbId: String = "")
+
+@Serializable
 internal data class ProviderDto(
     val id: String = "",
     val label: String = "",

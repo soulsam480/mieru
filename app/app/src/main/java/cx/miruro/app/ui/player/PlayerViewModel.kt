@@ -10,6 +10,11 @@ import cx.miruro.app.data.ResolvedStream
 import cx.miruro.app.data.SkipTime
 import cx.miruro.app.data.StreamOption
 import cx.miruro.app.data.StreamPicker
+import cx.miruro.app.data.embed.EmbedResolver
+import cx.miruro.app.data.embed.PlaybackRequest
+import cx.miruro.app.data.embed.ResolvedPlaybackCache
+import cx.miruro.app.data.embed.SourceStream
+import cx.miruro.app.data.embed.asStream
 import cx.miruro.app.data.parseSkipTimes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,25 +43,49 @@ class PlayerViewModel(
     private val prefs: PlaybackPrefsStore,
     private val animeId: String,
     private val animeTitle: String,
-    startEpisode: Int
+    startEpisode: Int,
+    /** A stream already resolved elsewhere (an embed page, say): nothing to look up. */
+    private val direct: PlaybackRequest? = null
 ) : ViewModel() {
-    private val _state = MutableStateFlow(PlayerUiState(episode = startEpisode))
+    private val directStream: ResolvedStream? = direct?.let { it.stream.asStream(it.subtitles) }
+    private val _state =
+        MutableStateFlow(
+            if (direct == null) {
+                PlayerUiState(episode = startEpisode)
+            } else {
+                PlayerUiState(
+                    episode = direct.episode,
+                    options =
+                        listOf(
+                            StreamOption(
+                                track = "embed",
+                                label = direct.stream.provider,
+                                stream = directStream ?: direct.stream.asStream()
+                            )
+                        ),
+                    startPositionMs = direct.startMs,
+                    loading = false
+                )
+            }
+        )
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
 
     private var cover: String? = null
 
     init {
-        viewModelScope.launch {
-            runCatching { api.show(animeId) }.onSuccess { show ->
-                cover =
-                    (
-                        show.data.firstOrNull {
-                            it.id == animeId
-                        } ?: show.data.firstOrNull()
-                        )?.coverUrl
+        if (direct == null) {
+            viewModelScope.launch {
+                runCatching { api.show(animeId) }.onSuccess { show ->
+                    cover =
+                        (
+                            show.data.firstOrNull {
+                                it.id == animeId
+                            } ?: show.data.firstOrNull()
+                            )?.coverUrl
+                }
             }
+            load(startEpisode)
         }
-        load(startEpisode)
     }
 
     fun load(episode: Int) {
@@ -142,8 +171,53 @@ class PlayerViewModel(
         return true
     }
 
+    /**
+     * Resolves the mirrors the detail screen did not try, appending each one as a source. Runs
+     * behind playback so the first working mirror is never held up by the rest.
+     */
+    fun collectSources(context: android.content.Context) {
+        val request = direct ?: return
+        if (request.alternates.isEmpty()) return
+
+        viewModelScope.launch {
+            val resolver = EmbedResolver()
+            // Bounded: a long mirror list is not worth a minute of background page loads.
+            for (mirror in request.alternates.take(MAX_BACKGROUND_SOURCES)) {
+                if (_state.value.options.any { it.label == mirror.label }) continue
+                val stream = resolver.resolve(context, mirror.url, mirror.label) ?: continue
+                ResolvedPlaybackCache.addSource(
+                    request.cacheKey,
+                    SourceStream(mirror.label, stream)
+                )
+                _state.update {
+                    it.copy(
+                        options =
+                            it.options + StreamOption("embed", mirror.label, stream.asStream())
+                    )
+                }
+            }
+        }
+    }
+
     fun saveProgress(positionMs: Long, durationMs: Long) {
         if (positionMs <= 0L || durationMs <= 0L) return
+
+        if (direct != null) {
+            viewModelScope.launch {
+                progress.record(
+                    animeId = direct.mediaId,
+                    title = direct.title,
+                    cover = direct.poster,
+                    episode = direct.episode,
+                    positionMs = positionMs,
+                    durationMs = durationMs,
+                    season = direct.season,
+                    kind = direct.kind
+                )
+            }
+            return
+        }
+
         viewModelScope.launch {
             progress.record(
                 animeId = animeId,
@@ -154,6 +228,10 @@ class PlayerViewModel(
                 durationMs = durationMs
             )
         }
+    }
+
+    private companion object {
+        const val MAX_BACKGROUND_SOURCES = 4
     }
 
     val nextEpisode: () -> Int? = {

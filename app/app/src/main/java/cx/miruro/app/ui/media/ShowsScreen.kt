@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -34,26 +36,47 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
+import cx.miruro.app.data.ContinueItem
+import cx.miruro.app.data.ProgressStore
 import cx.miruro.app.data.oneshows.MediaCard
 import cx.miruro.app.data.oneshows.MediaKind
 import cx.miruro.app.data.oneshows.OneShowsApi
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ShowsScreen(api: OneShowsApi, kind: MediaKind, onOpen: (MediaCard) -> Unit) {
+fun ShowsScreen(
+    api: OneShowsApi,
+    kind: MediaKind,
+    progress: ProgressStore,
+    onResume: (ContinueItem) -> Unit,
+    onOpen: (MediaCard) -> Unit
+) {
     val vm: ShowsViewModel = viewModel(key = "shows-${kind.name}") { ShowsViewModel(api, kind) }
     val state by vm.state.collectAsStateWithLifecycle()
+
+    var continueItems by remember { mutableStateOf(progress.continueWatching(kind.name)) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        continueItems = progress.continueWatching(kind.name)
+    }
 
     Scaffold(
         topBar = {
@@ -138,6 +161,12 @@ fun ShowsScreen(api: OneShowsApi, kind: MediaKind, onOpen: (MediaCard) -> Unit) 
                         .fillMaxSize()
                         .alpha(if (state.loading) 0.45f else 1f)
                 ) {
+                    if (state.query.isBlank() && continueItems.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            ContinueRow(continueItems, onResume)
+                        }
+                    }
+
                     items(state.items, key = { "${it.kind}-${it.id}" }) { card ->
                         MediaPosterCard(card, onClick = { onOpen(card) })
                     }
@@ -197,6 +226,80 @@ private fun MediaPosterCard(card: MediaCard, onClick: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+/** Newest first, with how far into the episode the viewer got. */
+@Composable
+private fun ContinueRow(items: List<ContinueItem>, onResume: (ContinueItem) -> Unit) {
+    Column(Modifier.padding(bottom = 4.dp)) {
+        Text(
+            "Continue watching",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(items.size) { index ->
+                ContinueCard(items[index], onClick = { onResume(items[index]) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContinueCard(item: ContinueItem, onClick: () -> Unit) {
+    val fraction =
+        if (item.durationMs > 0L) {
+            (item.positionMs.toFloat() / item.durationMs).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+
+    Column(
+        modifier = Modifier
+            .width(168.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick)
+    ) {
+        Box {
+            AsyncImage(
+                model = item.cover,
+                contentDescription = item.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+            )
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .align(Alignment.BottomStart)
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth(fraction)
+                        .height(3.dp)
+                        .background(MaterialTheme.colorScheme.primary)
+                )
+            }
+        }
+        Text(
+            item.title,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 6.dp)
+        )
+        Text(
+            if (item.season > 0) "S${item.season} E${item.episode}" else "EP ${item.episode}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 8.dp, top = 2.dp)
         )
     }
 }

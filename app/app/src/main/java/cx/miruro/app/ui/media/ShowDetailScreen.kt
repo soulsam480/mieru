@@ -1,6 +1,7 @@
 package cx.miruro.app.ui.media
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,12 +54,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import cx.miruro.app.data.embed.EmbedResolver
-import cx.miruro.app.data.embed.ResolvedEmbed
+import cx.miruro.app.data.embed.PlaybackRequest
 import cx.miruro.app.data.oneshows.MediaDetail
 import cx.miruro.app.data.oneshows.MediaEpisode
 import cx.miruro.app.data.oneshows.MediaKind
 import cx.miruro.app.data.oneshows.OneShowsApi
 import cx.miruro.app.data.oneshows.SeasonInfo
+
+/** Where "Continue watching" wants playback to resume. */
+data class ResumeTarget(val season: Int, val episode: Int, val startMs: Long)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,7 +72,8 @@ fun ShowDetailScreen(
     kind: MediaKind,
     fallbackTitle: String,
     onBack: () -> Unit,
-    onPlay: (ResolvedEmbed, String) -> Unit
+    onPlay: (PlaybackRequest) -> Unit,
+    resume: ResumeTarget? = null
 ) {
     val vm: ShowDetailViewModel =
         viewModel(key = "media-detail-${kind.name}-$mediaId") {
@@ -83,9 +88,30 @@ fun ShowDetailScreen(
     val resolved = state.resolved
     LaunchedEffect(resolved) {
         if (resolved != null) {
-            onPlay(resolved, state.detail?.title ?: fallbackTitle)
+            onPlay(
+                PlaybackRequest(
+                    stream = resolved,
+                    title = detail?.title ?: fallbackTitle,
+                    caption = state.resolvedCaption.orEmpty(),
+                    mediaId = mediaId,
+                    kind = kind.name,
+                    poster = detail?.posterUrl,
+                    season = state.resolvedSeason,
+                    episode = state.resolvedEpisode,
+                    startMs = state.resolvedStartMs,
+                    alternates = state.resolvedAlternates,
+                    subtitles = state.resolvedSubtitles
+                )
+            )
             vm.consumeResolved()
         }
+    }
+
+    // Tapped from Continue watching: land on the right season and pick up where it stopped.
+    LaunchedEffect(detail?.id, resume) {
+        if (detail == null || resume == null) return@LaunchedEffect
+        vm.selectSeason(resume.season)
+        vm.resolvePlayback(context, resume.season, resume.episode, resume.startMs)
     }
 
     Scaffold(
@@ -154,16 +180,17 @@ fun ShowDetailScreen(
                         }
                     }
 
-                    item {
-                        PlaybackNotice(
-                            resolving = state.resolving,
-                            error = state.resolveError,
-                            onResolve = {
-                                val season = state.selectedSeason ?: 1
-                                val episode = state.episodes.firstOrNull()?.number ?: 1
-                                vm.resolvePlayback(context, season, episode)
-                            }
-                        )
+                    if (detail.kind == MediaKind.MOVIE) {
+                        item {
+                            PlaybackNotice(
+                                resolving = state.resolving,
+                                error = state.resolveError,
+                                onResolve = {
+                                    vm.resolvePlayback(context, season = 1, episode = 1)
+                                },
+                                label = "Play movie"
+                            )
+                        }
                     }
 
                     if (detail.kind == MediaKind.TV) {
@@ -173,6 +200,17 @@ fun ShowDetailScreen(
                                     seasons = detail.seasons,
                                     selected = state.selectedSeason,
                                     onSelect = vm::selectSeason
+                                )
+                            }
+                        }
+
+                        state.resolveError?.let { failure ->
+                            item {
+                                Text(
+                                    failure,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                                 )
                             }
                         }
@@ -228,7 +266,18 @@ fun ShowDetailScreen(
                             }
 
                             else -> items(state.episodes, key = { it.number }) { episode ->
-                                EpisodeRow(episode)
+                                EpisodeRow(
+                                    episode = episode,
+                                    enabled = !state.resolving,
+                                    loading = state.resolvingEpisode == episode.number,
+                                    onPlay = {
+                                        vm.resolvePlayback(
+                                            context,
+                                            state.selectedSeason ?: 1,
+                                            episode.number
+                                        )
+                                    }
+                                )
                             }
                         }
                     }
@@ -316,7 +365,12 @@ private fun Header(detail: MediaDetail) {
  * offscreen WebView. The label names the failure so a dead mirror is visible.
  */
 @Composable
-private fun PlaybackNotice(resolving: Boolean, error: String?, onResolve: () -> Unit) {
+private fun PlaybackNotice(
+    resolving: Boolean,
+    error: String?,
+    onResolve: () -> Unit,
+    label: String = "Play"
+) {
     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
         AssistChip(
             onClick = { if (!resolving) onResolve() },
@@ -327,7 +381,7 @@ private fun PlaybackNotice(resolving: Boolean, error: String?, onResolve: () -> 
                     modifier = Modifier.size(16.dp)
                 )
             },
-            label = { Text(if (resolving) "Resolving…" else "Play episode") }
+            label = { Text(if (resolving) "Resolving…" else label) }
         )
         error?.let {
             Text(
@@ -380,10 +434,16 @@ private fun SeasonChips(seasons: List<SeasonInfo>, selected: Int?, onSelect: (In
 }
 
 @Composable
-private fun EpisodeRow(episode: MediaEpisode) {
+private fun EpisodeRow(
+    episode: MediaEpisode,
+    enabled: Boolean,
+    loading: Boolean,
+    onPlay: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onPlay)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -427,8 +487,12 @@ private fun EpisodeRow(episode: MediaEpisode) {
                 overflow = TextOverflow.Ellipsis
             )
             val sub =
-                listOfNotNull(episode.airDate, runtimeText(episode.runtimeMinutes))
-                    .joinToString(" · ")
+                if (loading) {
+                    "Resolving…"
+                } else {
+                    listOfNotNull(episode.airDate, runtimeText(episode.runtimeMinutes))
+                        .joinToString(" · ")
+                }
             if (sub.isNotEmpty()) {
                 Text(
                     sub,

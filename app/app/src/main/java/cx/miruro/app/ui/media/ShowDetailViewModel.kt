@@ -2,13 +2,18 @@ package cx.miruro.app.ui.media
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import cx.miruro.app.data.Subtitle
 import cx.miruro.app.data.embed.EmbedResolver
+import cx.miruro.app.data.embed.MirrorSource
 import cx.miruro.app.data.embed.ResolvedEmbed
+import cx.miruro.app.data.embed.ResolvedPlaybackCache
+import cx.miruro.app.data.embed.SourceStream
 import cx.miruro.app.data.oneshows.MediaDetail
 import cx.miruro.app.data.oneshows.MediaEpisode
 import cx.miruro.app.data.oneshows.MediaKind
 import cx.miruro.app.data.oneshows.OneShowsApi
 import cx.miruro.app.data.oneshows.SeasonInfo
+import cx.miruro.app.data.subtitles.OpenSubtitles
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,7 +31,18 @@ data class ShowDetailUiState(
     val error: String? = null,
     val episodesError: String? = null,
     val resolving: Boolean = false,
+    /** The episode whose tap started the resolve, for its row spinner. */
+    val resolvingEpisode: Int? = null,
     val resolved: ResolvedEmbed? = null,
+    /** "S1 E1" or "Movie": what the player puts under the title, next to the mirror. */
+    val resolvedCaption: String? = null,
+    val resolvedSeason: Int = 0,
+    val resolvedEpisode: Int = 0,
+    /** Where the player should start: non-zero when resuming from Continue watching. */
+    val resolvedStartMs: Long = 0L,
+    /** Mirrors still to try: the player resolves them behind playback. */
+    val resolvedAlternates: List<MirrorSource> = emptyList(),
+    val resolvedSubtitles: List<Subtitle> = emptyList(),
     val resolveError: String? = null
 )
 
@@ -38,6 +54,7 @@ class ShowDetailViewModel(private val api: OneShowsApi, private val kind: MediaK
     val state: StateFlow<ShowDetailUiState> = _state.asStateFlow()
 
     private var mediaId = ""
+    private var imdbIdCache: String? = null
     private var detailJob: Job? = null
     private var seasonJob: Job? = null
 
@@ -123,29 +140,114 @@ class ShowDetailViewModel(private val api: OneShowsApi, private val kind: MediaK
     }
 
     /** Tries each mirror in order until one page hands back a playlist. */
-    fun resolvePlayback(context: android.content.Context, season: Int, episode: Int) {
+    fun resolvePlayback(
+        context: android.content.Context,
+        season: Int,
+        episode: Int,
+        startMs: Long = 0L
+    ) {
         if (_state.value.resolving) return
-        _state.update { it.copy(resolving = true, resolveError = null, resolved = null) }
+
+        // Returning from the player, or reopening the page, should not spin up a WebView again.
+        val cacheKey = ResolvedPlaybackCache.Key(mediaId, kind.name, season, episode)
+        val cached = ResolvedPlaybackCache.get(cacheKey)
+        if (cached != null) {
+            _state.update {
+                it.copy(
+                    resolved = cached.sources.firstOrNull()?.stream,
+                    resolvedCaption = cached.caption,
+                    resolvedSeason = season,
+                    resolvedEpisode = episode,
+                    resolvedStartMs = startMs,
+                    resolvedAlternates = cached.untried,
+                    resolvedSubtitles = cached.subtitles,
+                    resolveError = null
+                )
+            }
+            return
+        }
+
+        _state.update {
+            it.copy(
+                resolving = true,
+                resolvingEpisode = if (kind == MediaKind.TV) episode else null,
+                resolveError = null,
+                resolved = null
+            )
+        }
 
         viewModelScope.launch {
+            // Subtitles come from OpenSubtitles, not the mirrors, so fetch them in parallel.
+            val subtitles = subtitlesFor(season, episode)
+
             val providers =
                 runCatching { api.embedProviders(mediaId, kind, season, episode) }.getOrNull()
             if (providers.isNullOrEmpty()) {
-                _state.update { it.copy(resolving = false, resolveError = "No mirrors found") }
+                _state.update {
+                    it.copy(
+                        resolving = false,
+                        resolvingEpisode = null,
+                        resolveError = "No mirrors found"
+                    )
+                }
                 return@launch
             }
 
             var failure = "No mirror returned a playlist"
-            for (provider in providers) {
-                val stream = resolver.resolve(context, provider.url)
+            for ((index, provider) in providers.withIndex()) {
+                val stream = resolver.resolve(context, provider.url, provider.label)
                 if (stream != null) {
-                    _state.update { it.copy(resolving = false, resolved = stream) }
+                    val caption =
+                        if (kind == MediaKind.MOVIE) "Movie" else "S$season E$episode"
+                    val untried =
+                        providers
+                            .drop(index + 1)
+                            .map { MirrorSource(label = it.label, url = it.url) }
+                    ResolvedPlaybackCache.put(
+                        cacheKey,
+                        ResolvedPlaybackCache.Hit(
+                            sources = listOf(SourceStream(provider.label, stream)),
+                            caption = caption,
+                            untried = untried,
+                            subtitles = subtitles
+                        )
+                    )
+                    _state.update {
+                        it.copy(
+                            resolving = false,
+                            resolvingEpisode = null,
+                            resolved = stream,
+                            resolvedCaption = caption,
+                            resolvedSeason = season,
+                            resolvedEpisode = episode,
+                            resolvedStartMs = startMs,
+                            resolvedAlternates = untried,
+                            resolvedSubtitles = subtitles
+                        )
+                    }
                     return@launch
                 }
                 failure = "${provider.label} did not return a playlist"
             }
-            _state.update { it.copy(resolving = false, resolveError = failure) }
+            _state.update {
+                it.copy(resolving = false, resolvingEpisode = null, resolveError = failure)
+            }
         }
+    }
+
+    /** IMDb id first, then every track OpenSubtitles has for this episode. */
+    private suspend fun subtitlesFor(season: Int, episode: Int): List<Subtitle> {
+        val imdb =
+            imdbIdCache ?: api.imdbId(mediaId, kind)?.also { imdbIdCache = it }
+                ?: return emptyList()
+        val forEpisode = if (kind == MediaKind.MOVIE) null else episode
+        val tracks =
+            OpenSubtitles.search(
+                imdbId = imdb,
+                season = if (kind == MediaKind.MOVIE) null else season,
+                episode = forEpisode
+            )
+        return tracks
     }
 
     fun consumeResolved() {
