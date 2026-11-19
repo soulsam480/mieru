@@ -21,6 +21,23 @@ import cx.miruro.app.data.Subtitle
  */
 internal object MediaSources {
 
+    /**
+     * Side-loaded tracks come in several formats. ExoPlayer picks a parser by MIME type, so an
+     * .srt announced as WebVTT renders nothing.
+     */
+    private fun subtitleMimeType(subtitle: Subtitle): String {
+        val format = subtitle.format?.lowercase().orEmpty()
+        return when {
+            format == "srt" || subtitle.file.endsWith(".srt", ignoreCase = true) ->
+                MimeTypes.APPLICATION_SUBRIP
+
+            format == "ass" || format == "ssa" || subtitle.file.endsWith(".ass", true) ->
+                MimeTypes.TEXT_SSA
+
+            else -> MimeTypes.TEXT_VTT
+        }
+    }
+
     fun create(stream: ResolvedStream, metadata: MediaMetadata? = null): MediaSource {
         val dataSource = DefaultHttpDataSource.Factory()
             .setUserAgent(Http.UA)
@@ -42,7 +59,7 @@ internal object MediaSources {
 
     private fun subtitleConfiguration(subtitle: Subtitle): MediaItem.SubtitleConfiguration =
         MediaItem.SubtitleConfiguration.Builder(Uri.parse(subtitle.file))
-            .setMimeType(MimeTypes.TEXT_VTT)
+            .setMimeType(subtitleMimeType(subtitle))
             .setLanguage(subtitle.language)
             .setLabel(subtitle.label ?: subtitle.language)
             .setSelectionFlags(if (subtitle.isDefault) C.SELECTION_FLAG_DEFAULT else 0)

@@ -70,6 +70,7 @@ import cx.miruro.app.data.ContinueItem
 import cx.miruro.app.data.MiruroApi
 import cx.miruro.app.data.ProgressStore
 import cx.miruro.app.data.UpdateChecker
+import cx.miruro.app.ui.components.ContinueWatchingRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -259,7 +260,7 @@ fun ListScreen(
 
                     if (state.continueItems.isNotEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
-                            ContinueRow(state.continueItems, onResume)
+                            ContinueWatchingRow(state.continueItems, onResume)
                         }
                     }
 
@@ -330,78 +331,4 @@ private fun GenreRow(selected: String?, onSelect: (String?) -> Unit) {
 @Composable
 private fun Centered(content: @Composable () -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
-}
-
-@Composable
-private fun ContinueRow(items: List<ContinueItem>, onResume: (ContinueItem) -> Unit) {
-    Column {
-        Text(
-            "Continue watching",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(items.size) { index ->
-                val item = items[index]
-                ContinueCard(item) { onResume(item) }
-            }
-        }
-        Spacer(Modifier.height(6.dp))
-    }
-}
-
-@Composable
-private fun ContinueCard(item: ContinueItem, onClick: () -> Unit) {
-    val fraction = if (item.durationMs > 0) {
-        (item.positionMs.toFloat() / item.durationMs).coerceIn(0f, 1f)
-    } else {
-        0f
-    }
-
-    Column(
-        modifier = Modifier
-            .width(168.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onClick)
-    ) {
-        Box {
-            AsyncImage(
-                model = item.cover,
-                contentDescription = item.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-            )
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .background(Color.Black.copy(alpha = 0.45f))
-                    .align(Alignment.BottomStart)
-            ) {
-                Box(
-                    Modifier
-                        .fillMaxWidth(fraction)
-                        .height(3.dp)
-                        .background(MaterialTheme.colorScheme.primary)
-                )
-            }
-        }
-        Text(
-            item.title,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 6.dp)
-        )
-        Text(
-            "EP ${item.episode}",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 8.dp, top = 2.dp)
-        )
-    }
 }

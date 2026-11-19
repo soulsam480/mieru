@@ -1,0 +1,168 @@
+package cx.miruro.app.data.oneshows
+
+import cx.miruro.app.data.ApiException
+import cx.miruro.app.data.Http
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.KSerializer
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.OkHttpClient
+import okhttp3.Request
+
+/**
+ * Metadata for the 1shows catalogue. Its own client: the site rejects requests that do not look
+ * same-origin, and the Miruro interceptor would point its Referer at the wrong host.
+ */
+class OneShowsApi(private val siteUrl: () -> String = { OneShowsStore.DEFAULT_SITE }) {
+
+    private val site: String get() = siteUrl().trimEnd('/')
+    private val database: String get() = OneShowsStore.deriveDatabase(site)
+
+    private val client =
+        OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .header("Referer", "$site/")
+                        .header("Accept", "application/json")
+                        .header("User-Agent", Http.UA)
+                        .build()
+                )
+            }
+            .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .callTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+            .build()
+
+    /**
+     * The trending feed is ids only, so each one needs a detail call. A dead id is dropped instead
+     * of failing the whole row.
+     */
+    suspend fun trending(kind: MediaKind): List<MediaCard> {
+        val feed =
+            when (kind) {
+                MediaKind.TV -> "tv"
+                MediaKind.MOVIE -> "movies"
+                MediaKind.ANIME -> return emptyList()
+            }
+        val ids = get("$database/api/management/trending/$feed", TrendingDto.serializer()).tmdbIds
+
+        return coroutineScope {
+            ids.distinct()
+                .map { id -> async { runCatching { detail(id, kind).toCard() }.getOrNull() } }
+                .awaitAll()
+                .filterNotNull()
+        }
+    }
+
+    suspend fun search(query: String): List<MediaCard> {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return emptyList()
+
+        val page =
+            get("$site/api/search/query", SearchDto.serializer(), mapOf("query" to trimmed))
+        return page.results.mapNotNull { it.toCard() }
+    }
+
+    suspend fun detail(id: String, kind: MediaKind): MediaDetail = when (kind) {
+        MediaKind.TV -> get("$site/api/tv/$id", TvDetailDto.serializer()).toDetail(id)
+
+        MediaKind.MOVIE ->
+            get("$site/api/movie/$id", MovieDetailDto.serializer()).toDetail(id)
+
+        MediaKind.ANIME -> throw IllegalArgumentException("1shows has no anime catalogue")
+    }
+
+    /** The IMDb id, which is how subtitle providers key their catalogues. */
+    suspend fun imdbId(id: String, kind: MediaKind): String? {
+        val feed =
+            when (kind) {
+                MediaKind.TV -> "tv"
+                MediaKind.MOVIE -> "movie"
+                MediaKind.ANIME -> return null
+            }
+        return runCatching {
+            get("$site/api/$feed/$id/external_ids", ExternalIdsDto.serializer()).imdbId
+        }
+            .getOrNull()
+            ?.takeIf { it.startsWith("tt") }
+    }
+
+    suspend fun season(tvId: String, seasonNumber: Int): List<MediaEpisode> =
+        get("$site/api/tv/$tvId/season/$seasonNumber", SeasonDetailDto.serializer())
+            .episodes
+            .map { it.toEpisode() }
+            .sortedBy { it.number }
+
+    /**
+     * Embed URLs for one episode, cheapest-first: the viduki mirrors gate on a captcha, so they go
+     * last and usually fail without a human.
+     */
+    suspend fun embedProviders(
+        mediaId: String,
+        kind: MediaKind,
+        season: Int,
+        episode: Int
+    ): List<EmbedProvider> {
+        val feed =
+            get(
+                url = "$PROVIDERS/embed_providers?site=1shows",
+                serializer = ProvidersDto.serializer(),
+                extraHeaders = mapOf("Origin" to site)
+            )
+
+        return feed.providers
+            .map { provider ->
+                val template =
+                    if (kind == MediaKind.MOVIE) provider.movie else provider.tv
+                EmbedProvider(
+                    id = provider.id,
+                    label = provider.label,
+                    url =
+                        template
+                            .replace("{id}", mediaId)
+                            .replace("{s}", season.toString())
+                            .replace("{e}", episode.toString())
+                )
+            }
+            .sortedBy { it.url.contains(CAPTCHA_HOST) }
+    }
+
+    private suspend fun <T> get(
+        url: String,
+        serializer: KSerializer<T>,
+        query: Map<String, String> = emptyMap(),
+        extraHeaders: Map<String, String> = emptyMap()
+    ): T = withContext(Dispatchers.IO) {
+        val target =
+            url.toHttpUrl().newBuilder().apply {
+                query.forEach { (key, value) -> addQueryParameter(key, value) }
+            }.build()
+
+        val request =
+            Request.Builder().url(target).get().apply {
+                extraHeaders.forEach { (name, value) -> header(name, value) }
+            }.build()
+
+        client.newCall(request).execute().use { response ->
+            val bytes = response.body.bytes()
+            if (!response.isSuccessful) {
+                throw ApiException(response.code, bytes.toString(Charsets.UTF_8).take(300))
+            }
+            OneShowsJson.decodeFromString(serializer, bytes.decodeToString())
+        }
+    }
+
+    private companion object {
+        const val PROVIDERS = "https://api.viduki.net"
+
+        /** These mirrors gate on a captcha and need a human, so they go last. */
+        const val CAPTCHA_HOST = "viduki.net"
+        const val TIMEOUT_SECONDS = 20L
+    }
+}

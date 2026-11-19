@@ -48,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Format
+import androidx.media3.common.Tracks
 import cx.miruro.app.data.StreamOption
 import cx.miruro.app.data.SubtitleStyle
 
@@ -59,6 +60,13 @@ internal class PlayerChromeState {
     var visible by mutableStateOf(true)
     var openSheet by mutableStateOf(PlayerSheet.None)
     var subtitleLanguage by mutableStateOf<String?>(DEFAULT_SUBTITLE_LANGUAGE)
+
+    /**
+     * The track the viewer picked, as track-group id and index: ExoPlayer rebuilds the group
+     * objects as tracks change, so identity cannot be the marker. Several tracks share a language,
+     * which is why the language name is not either.
+     */
+    var selectedText by mutableStateOf<Pair<String, Int>?>(null)
     var qualityLabel by mutableStateOf<String?>(null)
 }
 
@@ -72,7 +80,9 @@ internal fun PlayerTopBar(
     onPreviousEpisode: (() -> Unit)?,
     onNextEpisode: (() -> Unit)?,
     onToggleFullscreen: () -> Unit,
-    onOpenInfo: () -> Unit
+    onOpenInfo: (() -> Unit)?,
+    /** Overrides the "EP n" subtitle, for a stream with no episode list behind it. */
+    caption: String? = null
 ) {
     Row(
         modifier = Modifier
@@ -103,15 +113,21 @@ internal fun PlayerTopBar(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                "EP $episode" + (provider?.let { " · $it" } ?: ""),
+                caption ?: ("EP $episode" + (provider?.let { " · $it" } ?: "")),
                 color = Color.White.copy(alpha = 0.7f),
                 style = MaterialTheme.typography.labelSmall
             )
         }
 
-        PlayerPill("Info", enabled = true, onClick = onOpenInfo)
-        PlayerPill("Prev", enabled = onPreviousEpisode != null) { onPreviousEpisode?.invoke() }
-        PlayerPill("Next", enabled = onNextEpisode != null) { onNextEpisode?.invoke() }
+        if (onOpenInfo != null) {
+            PlayerPill("Info", enabled = true, onClick = onOpenInfo)
+        }
+        if (onPreviousEpisode != null) {
+            PlayerPill("Prev", enabled = true, onClick = onPreviousEpisode)
+        }
+        if (onNextEpisode != null) {
+            PlayerPill("Next", enabled = true, onClick = onNextEpisode)
+        }
         PlayerPill(if (isFullscreen) "Exit" else "Full") { onToggleFullscreen() }
     }
 }
@@ -211,6 +227,7 @@ internal fun PlayerSheets(
                     selected = chrome.subtitleLanguage == null,
                     onClick = {
                         chrome.subtitleLanguage = null
+                        chrome.selectedText = null
                         controller.useTextGroup(null)
                         dismiss()
                     }
@@ -226,14 +243,13 @@ internal fun PlayerSheets(
                             label = label,
                             supporting = format.language,
                             selected =
-                                chrome.subtitleLanguage.equals(
-                                    format.language,
-                                    ignoreCase = true
-                                ) ||
-                                    (chrome.subtitleLanguage == label),
+                                chrome.selectedText?.let { (groupId, picked) ->
+                                    group.mediaTrackGroup.id == groupId && picked == index
+                                } ?: chrome.subtitleLanguage.equals(format.language, true),
                             onClick = {
                                 chrome.subtitleLanguage = format.language ?: label
-                                controller.useTextGroup(group)
+                                chrome.selectedText = group.mediaTrackGroup.id to index
+                                controller.useTextGroup(group, index)
                                 dismiss()
                             }
                         )
@@ -477,25 +493,60 @@ internal fun PauseGlyph() {
 }
 
 private fun subtitleLabel(format: Format): String {
-    val language = format.language?.uppercase()
-    val name = when (format.language?.lowercase()) {
-        "eng", "en" -> "English"
-        "jpn", "ja" -> "Japanese"
-        "spa", "es" -> "Spanish"
-        "por", "pt" -> "Portuguese"
-        "fre", "fra", "fr" -> "French"
-        "ger", "deu", "de" -> "German"
-        "ita", "it" -> "Italian"
-        "ara", "ar" -> "Arabic"
-        "ind", "id" -> "Indonesian"
-        "may", "ms" -> "Malay"
-        "chi", "zh" -> "Chinese"
-        "rus", "ru" -> "Russian"
-        "kor", "ko" -> "Korean"
-        else -> null
-    }
-    return listOfNotNull(name, format.label ?: language).firstOrNull() ?: "Track"
+    val code = format.language
+    return languageName(code) ?: code?.uppercase() ?: format.label ?: "Track"
 }
+
+/** "eng", "en" and "hbs-hrv" all get a readable name; unknown codes stay as they are. */
+private fun languageName(code: String?): String? {
+    val tag = code?.lowercase()?.substringBefore('-')?.takeIf { it.isNotBlank() } ?: return null
+    ISO_639_2[tag]?.let { return it }
+    val name = java.util.Locale.forLanguageTag(tag).getDisplayName(java.util.Locale.ENGLISH)
+    return name.takeIf { it.isNotBlank() && !it.equals(tag, ignoreCase = true) }
+}
+
+/** The three-letter languages OpenSubtitles returns that Android does not resolve on its own. */
+private val ISO_639_2 =
+    mapOf(
+        "fre" to "French",
+        "fra" to "French",
+        "ger" to "German",
+        "deu" to "German",
+        "dut" to "Dutch",
+        "nld" to "Dutch",
+        "cze" to "Czech",
+        "ces" to "Czech",
+        "gre" to "Greek",
+        "ell" to "Greek",
+        "rum" to "Romanian",
+        "ron" to "Romanian",
+        "chi" to "Chinese",
+        "zho" to "Chinese",
+        "may" to "Malay",
+        "msa" to "Malay",
+        "per" to "Persian",
+        "fas" to "Persian",
+        "ice" to "Icelandic",
+        "isl" to "Icelandic",
+        "baq" to "Basque",
+        "eus" to "Basque",
+        "wel" to "Welsh",
+        "cym" to "Welsh",
+        "arm" to "Armenian",
+        "hye" to "Armenian",
+        "geo" to "Georgian",
+        "kat" to "Georgian",
+        "mac" to "Macedonian",
+        "mkd" to "Macedonian",
+        "alb" to "Albanian",
+        "sqi" to "Albanian",
+        "srp" to "Serbian",
+        "hrv" to "Croatian",
+        "slv" to "Slovenian",
+        "slk" to "Slovak",
+        "slo" to "Slovak",
+        "pob" to "Portuguese (Brazil)"
+    )
 
 private fun videoLabel(format: Format): String =
     format.height.takeIf { it > 0 }?.let { "${it}p" } ?: format.label ?: "Track"
