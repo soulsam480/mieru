@@ -55,6 +55,7 @@ import cx.miruro.app.data.ProgressStore
 import cx.miruro.app.data.oneshows.MediaCard
 import cx.miruro.app.data.oneshows.MediaKind
 import cx.miruro.app.data.oneshows.OneShowsApi
+import cx.miruro.app.ui.components.ContinueWatchingRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -157,7 +158,7 @@ fun ShowsScreen(
                 ) {
                     if (state.query.isBlank() && continueItems.isNotEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
-                            ContinueRow(continueItems, onResume)
+                            ContinueWatchingRow(continueItems, onResume)
                         }
                     }
 
@@ -220,80 +221,6 @@ private fun MediaPosterCard(card: MediaCard, onClick: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-/** Newest first, with how far into the episode the viewer got. */
-@Composable
-private fun ContinueRow(items: List<ContinueItem>, onResume: (ContinueItem) -> Unit) {
-    Column(Modifier.padding(bottom = 4.dp)) {
-        Text(
-            "Continue watching",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(items.size) { index ->
-                ContinueCard(items[index], onClick = { onResume(items[index]) })
-            }
-        }
-    }
-}
-
-@Composable
-private fun ContinueCard(item: ContinueItem, onClick: () -> Unit) {
-    val fraction =
-        if (item.durationMs > 0L) {
-            (item.positionMs.toFloat() / item.durationMs).coerceIn(0f, 1f)
-        } else {
-            0f
-        }
-
-    Column(
-        modifier = Modifier
-            .width(168.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onClick)
-    ) {
-        Box {
-            AsyncImage(
-                model = item.cover,
-                contentDescription = item.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-            )
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .background(Color.Black.copy(alpha = 0.45f))
-                    .align(Alignment.BottomStart)
-            ) {
-                Box(
-                    Modifier
-                        .fillMaxWidth(fraction)
-                        .height(3.dp)
-                        .background(MaterialTheme.colorScheme.primary)
-                )
-            }
-        }
-        Text(
-            item.title,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 6.dp)
-        )
-        Text(
-            if (item.season > 0) "S${item.season} E${item.episode}" else "EP ${item.episode}",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 8.dp, top = 2.dp)
         )
     }
 }

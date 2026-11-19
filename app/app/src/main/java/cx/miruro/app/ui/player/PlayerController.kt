@@ -102,6 +102,9 @@ internal class PlayerController(context: Context) {
         }
 
     fun attach() {
+        // Only one screen may make noise: a player left behind by a previous route would keep
+        // playing under the new one.
+        PlaybackOwner.claim(this)
         player.addListener(listener)
     }
 
@@ -196,6 +199,7 @@ internal class PlayerController(context: Context) {
     }
 
     fun release() {
+        PlaybackOwner.release(this)
         detach()
         player.release()
     }
