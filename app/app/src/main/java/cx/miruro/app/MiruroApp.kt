@@ -9,6 +9,7 @@ import cx.miruro.app.data.ProgressStore
 import cx.miruro.app.data.SourceStore
 import cx.miruro.app.data.StyleStore
 import cx.miruro.app.data.UpdateChecker
+import cx.miruro.app.data.WatchlistStore
 import cx.miruro.app.data.oneshows.OneShowsApi
 import cx.miruro.app.data.oneshows.OneShowsStore
 import java.io.File
@@ -33,6 +34,8 @@ class MiruroApp : Application() {
         private set
     lateinit var autoSkip: AutoSkipStore
         private set
+    lateinit var watchlist: WatchlistStore
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -48,6 +51,7 @@ class MiruroApp : Application() {
         styles = StyleStore(File(filesDir, "subtitle-style.json"))
         prefs = PlaybackPrefsStore(File(filesDir, "track-preference.txt"))
         autoSkip = AutoSkipStore(File(filesDir, "auto-skip.json"))
+        watchlist = WatchlistStore(File(filesDir, "watchlist.json"))
         updates = UpdateChecker(this)
         updates.checkInBackground(
             kotlinx.coroutines.CoroutineScope(

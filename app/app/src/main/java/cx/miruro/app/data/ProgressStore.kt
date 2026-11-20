@@ -67,6 +67,13 @@ class ProgressStore(file: File) {
     fun progressOf(animeId: String, episode: Int): EpisodeProgress? =
         snapshot().episodes[key(animeId, 0, episode)]
 
+    /** Every section mixed, newest first: the library screen's "continue" list. */
+    fun continueWatchingAll(limit: Int = 20): List<ContinueItem> = snapshot()
+        .recents.values
+        .filter { it.durationMs <= 0L || it.positionMs.toFloat() / it.durationMs < 0.95f }
+        .sortedByDescending { it.updatedAt }
+        .take(limit)
+
     /** Newest first, skipping anything essentially finished. */
     fun continueWatching(kind: String = ANIME, limit: Int = 12): List<ContinueItem> = snapshot()
         .recents.values

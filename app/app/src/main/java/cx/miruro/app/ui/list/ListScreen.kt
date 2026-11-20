@@ -49,6 +49,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,6 +72,7 @@ import cx.miruro.app.data.MiruroApi
 import cx.miruro.app.data.ProgressStore
 import cx.miruro.app.data.UpdateChecker
 import cx.miruro.app.ui.components.ContinueWatchingRow
+import cx.miruro.app.ui.components.MiruroIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,6 +81,7 @@ fun ListScreen(
     progress: ProgressStore,
     onOpenAnime: (Anime) -> Unit,
     onResume: (ContinueItem) -> Unit,
+    onOpenLibrary: () -> Unit,
     onOpenSettings: () -> Unit,
     updates: UpdateChecker
 ) {
@@ -101,11 +104,20 @@ fun ListScreen(
             last >= state.items.size - 4
         }
     }
-    LaunchedEffect(state.sort, state.genre) {
-        gridState.scrollToItem(0)
+    // Saved, so returning from a title does not look like a key change and jump the grid to top.
+    var feedKeys by rememberSaveable {
+        mutableStateOf(listOf(state.sort, state.genre, state.query))
+    }
+    LaunchedEffect(state.sort, state.genre, state.query) {
+        val keys = listOf(state.sort, state.genre, state.query)
+        if (keys != feedKeys) {
+            feedKeys = keys
+            gridState.scrollToItem(0)
+        }
     }
 
-    LaunchedEffect(shouldLoadMore) {
+    LaunchedEffect(shouldLoadMore, state.error) {
+        // Re-keyed on the error so a failed page retries instead of waiting for the next scroll.
         if (shouldLoadMore) vm.loadMore()
     }
 
@@ -128,6 +140,9 @@ fun ListScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onOpenLibrary) {
+                        Icon(MiruroIcons.Bookmark, contentDescription = "Library")
+                    }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Filled.Settings, contentDescription = "Settings")
                     }
@@ -255,6 +270,28 @@ fun ListScreen(
                     if (state.sort != SORT_LATEST) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
                             GenreRow(selected = state.genre, onSelect = vm::onGenreChange)
+                        }
+                    }
+
+                    state.error?.takeIf { state.items.isNotEmpty() }?.let { message ->
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(onClick = vm::retry)
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    message,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.error,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text("Retry", style = MaterialTheme.typography.labelMedium)
+                            }
                         }
                     }
 

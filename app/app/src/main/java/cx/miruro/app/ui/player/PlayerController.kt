@@ -112,11 +112,18 @@ internal class PlayerController(context: Context) {
         player.removeListener(listener)
     }
 
-    fun open(stream: ResolvedStream, startAtMs: Long, metadata: MediaMetadata? = null) {
+    fun open(
+        stream: ResolvedStream,
+        startAtMs: Long,
+        metadata: MediaMetadata? = null,
+        resetSpeed: Boolean = true
+    ) {
         lastError = null
-        // Every episode starts at normal speed, whatever the previous one was set to.
-        isSpeedBoosted = false
-        playbackSpeed = NORMAL_SPEED
+        // A new episode starts at normal speed; swapping the source of the same episode does not.
+        if (resetSpeed) {
+            isSpeedBoosted = false
+            playbackSpeed = NORMAL_SPEED
+        }
         PlaybackDiagnostics.logSubtitles(stream)
         player.setMediaSource(MediaSources.create(stream, metadata))
         player.trackSelectionParameters =

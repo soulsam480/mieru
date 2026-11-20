@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,10 +19,12 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -36,8 +39,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -56,6 +63,7 @@ import cx.miruro.app.data.oneshows.MediaCard
 import cx.miruro.app.data.oneshows.MediaKind
 import cx.miruro.app.data.oneshows.OneShowsApi
 import cx.miruro.app.ui.components.ContinueWatchingRow
+import cx.miruro.app.ui.components.MiruroIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,10 +72,21 @@ fun ShowsScreen(
     kind: MediaKind,
     progress: ProgressStore,
     onResume: (ContinueItem) -> Unit,
-    onOpen: (MediaCard) -> Unit
+    onOpen: (MediaCard) -> Unit,
+    onOpenLibrary: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     val vm: ShowsViewModel = viewModel(key = "shows-${kind.name}") { ShowsViewModel(api, kind) }
     val state by vm.state.collectAsStateWithLifecycle()
+    val gridState = rememberLazyGridState()
+
+    var lastQuery by rememberSaveable { mutableStateOf(state.query) }
+    LaunchedEffect(state.query) {
+        if (state.query != lastQuery) {
+            lastQuery = state.query
+            gridState.scrollToItem(0)
+        }
+    }
 
     // Recomputed whenever anything is watched, so coming back from the player shows the new row.
     val progressRevision by progress.revision.collectAsStateWithLifecycle()
@@ -82,6 +101,14 @@ fun ShowsScreen(
                         fontWeight = FontWeight.Black,
                         style = MaterialTheme.typography.titleLarge
                     )
+                },
+                actions = {
+                    IconButton(onClick = onOpenLibrary) {
+                        Icon(MiruroIcons.Bookmark, contentDescription = "Library")
+                    }
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
@@ -152,10 +179,33 @@ fun ShowsScreen(
                     ),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(18.dp),
+                    state = gridState,
                     modifier = Modifier
                         .fillMaxSize()
                         .alpha(if (state.loading) 0.45f else 1f)
                 ) {
+                    state.error?.takeIf { state.items.isNotEmpty() }?.let { message ->
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(onClick = vm::retry)
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    message,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.error,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text("Retry", style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
+                    }
+
                     if (state.query.isBlank() && continueItems.isNotEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
                             ContinueWatchingRow(continueItems, onResume)
