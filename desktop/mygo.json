@@ -1,0 +1,6 @@
+{
+  "name": "Mieru",
+  "identifier": "cx.miruro.desktop",
+  "version": "1.0.0",
+  "out": "build"
+}
