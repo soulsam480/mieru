@@ -27,6 +27,7 @@ object ResolvedPlaybackCache {
     )
 
     private const val TTL_MS = 20 * 60 * 1000L
+    private const val MAX_ENTRIES = 24
     private val entries = HashMap<Key, Pair<Long, Hit>>()
 
     fun get(key: Key, now: Long = System.currentTimeMillis()): Hit? {
@@ -40,6 +41,14 @@ object ResolvedPlaybackCache {
 
     fun put(key: Key, hit: Hit, now: Long = System.currentTimeMillis()) {
         entries[key] = now to hit
+        // Time-bounded, not size-bounded, until now: a long binge could hold every episode's
+        // playlist plus its four mirrors. Keep only the most recent resolves.
+        if (entries.size > MAX_ENTRIES) {
+            entries.entries
+                .sortedBy { it.value.first }
+                .take(entries.size - MAX_ENTRIES)
+                .forEach { entries.remove(it.key) }
+        }
     }
 
     /** Records a playlist the player resolved in the background and retires its mirror. */

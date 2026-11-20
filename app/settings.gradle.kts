@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "mieru"
 include(":app")
+include(":core:model")
