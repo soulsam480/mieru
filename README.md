@@ -174,6 +174,17 @@ A few non-obvious things the endpoints force:
 | **Subtitle providers key on IMDb ids** | `external_ids` from the 1shows catalogue supplies the `tt…` id, and OpenSubtitles' addon answers with `.srt` links. |
 | **Side-loaded subtitles need `DefaultMediaSourceFactory`** | Building `HlsMediaSource` directly silently drops `MediaItem.subtitleConfigurations`. |
 
+## Memory profiling
+
+`tools/profile-memory.sh` walks one session — idle, browsed, playing, player closed, backgrounded,
+reopened — and writes `dumpsys meminfo`, the process record and the media-session count for each
+step, then pulls a heap dump. A leak shows up as a step whose PSS does not come back down, and a
+WebView that is still counted after a resolve is a resolver that did not destroy its view.
+
+```bash
+tools/profile-memory.sh debug    # debug build; release is not debuggable
+```
+
 ## Configuration
 
 Both hosts are settings, so a mirror can be swapped in without rebuilding. Progress is local and
