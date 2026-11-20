@@ -698,17 +698,15 @@ func (p *playerPage) drawCue(c *ui.Context, text string) {
 	background := ui.RGBA(0, 0, 0, 0)
 	switch p.subtitleStyle.Background {
 	case "Dim":
-		background = ui.RGBA(0, 0, 0, 128)
+		background = ui.RGBA(0, 0, 0, 150)
 	case "Solid":
-		background = ui.RGBA(0, 0, 0, 204)
+		background = ui.RGBA(0, 0, 0, 220)
 	}
-	ui.Column(c).Absolute().Bottom(110).Left(60).Right(60).Children(func() {
-		ui.Box(c).Padding(4, 8).Radius(6).Background(background).Center().Children(func() {
-			line := ui.Text(c, text).FontSize(size).TextColor(color).TextAlign(ui.Center)
-			if p.subtitleStyle.Outline {
-				line.TextStroke(2, ui.RGBA(0, 0, 0, 255))
-			}
-		})
+	ui.Column(c).Absolute().Bottom(110).Left(60).Right(60).AlignItems(ui.Center).Children(func() {
+		line := ui.Text(c, text).FontSize(size).TextColor(color).TextAlign(ui.Center).TextBackground(background)
+		if p.subtitleStyle.Outline {
+			line.TextStroke(2, ui.RGBA(0, 0, 0, 255))
+		}
 	})
 }
 
