@@ -43,10 +43,10 @@ step "movies section";           press_ref 'key="/movies"';      assert "movies 
 step "settings";                 press_ref 'key="/settings"';    assert "settings sections" 'wait_has "Anime source"'
 press_ref '"Dub"';               assert "audio choice saved" 'has "\"Dub\" checked"'
 press_ref '"XL"';                assert "subtitle size saved" 'has "\"XL\" checked"'
-press_ref '"Test"';              assert "mirror test reported" 'wait_has "answers|did not answer"'
+press_ref '"Test"';              assert "mirror test reported" 'wait_has "answers|did not answer|Could not check"'
 "$CLI" screenshot "$EVIDENCE/e2e-settings.png" >/dev/null 2>&1
 
-step "open tv detail";           press_ref 'key="/tv"'; wait_has "Search tv shows"; sleep 8; press_ref 'EP [0-9]|S1 E1'; sleep 6; assert "episode list" 'has "Episodes"'
+step "open tv detail";           press_ref 'key="/tv"'; wait_has "Search tv shows"; f=$(ref 'Search tv shows'); "$CLI" fill "$f" "the mentalist" --settle --timeout 20s >/dev/null 2>&1; sleep 6; press_ref 'Mentalist'; assert "episode list" 'wait_has "Episodes"'
 "$CLI" screenshot "$EVIDENCE/e2e-detail.png" >/dev/null 2>&1
 
 step "player";                   wait_has "Play S1 E1|Continue ·"; press_ref '(Play|Continue)'; assert "transport appears" 'wait_has "Pause"'

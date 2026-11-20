@@ -47,28 +47,30 @@ func (p *settingsPage) view(c *ui.Context, a *App) {
 				muted(c, "The API base every anime request goes through.")
 				for _, source := range settings.Sources {
 					source := source
-					row := ui.ButtonBase(c).Padding(8, 12).Radius(8)
-					row.Children(func() {
-						ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
-							mark := "○"
-							if source.ID == settings.SelectedID {
-								mark = "●"
-							}
-							ui.Text(c, mark).FontSize(14)
-							ui.Column(c).Grow(1).Children(func() {
-								ui.Text(c, source.Name).SingleLine()
-								muted(c, source.BaseURL)
+					ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+						row := ui.ButtonBase(c).Grow(1).Padding(8, 12).Radius(8)
+						row.Children(func() {
+							ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
+								mark := "○"
+								if source.ID == settings.SelectedID {
+									mark = "●"
+								}
+								ui.Text(c, mark).FontSize(14)
+								ui.Column(c).Grow(1).Children(func() {
+									ui.Text(c, source.Name).SingleLine()
+									muted(c, source.BaseURL)
+								})
 							})
-							if ui.Button(c, "Test").Clicked() {
-								p.test(a, source.BaseURL)
-							}
 						})
+						if row.Clicked() && source.ID != settings.SelectedID {
+							a.settings.Update(func(s *store.Settings) { s.SelectedID = source.ID })
+							a.anime.entered, a.tv.entered, a.movies.entered = false, false, false
+							c.Toast("Anime source changed to " + source.Name)
+						}
+						if ui.Button(c, "Test").Clicked() {
+							p.test(a, source.BaseURL)
+						}
 					})
-					if row.Clicked() && source.ID != settings.SelectedID {
-						a.settings.Update(func(s *store.Settings) { s.SelectedID = source.ID })
-						a.anime.entered, a.tv.entered, a.movies.entered = false, false, false
-						c.Toast("Anime source changed to " + source.Name)
-					}
 				}
 
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
