@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,6 +42,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +55,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
+import cx.miruro.app.data.WatchlistItem
+import cx.miruro.app.data.WatchlistStore
 import cx.miruro.app.data.embed.EmbedResolver
 import cx.miruro.app.data.embed.PlaybackRequest
 import cx.miruro.app.data.oneshows.MediaDetail
@@ -60,6 +64,8 @@ import cx.miruro.app.data.oneshows.MediaEpisode
 import cx.miruro.app.data.oneshows.MediaKind
 import cx.miruro.app.data.oneshows.OneShowsApi
 import cx.miruro.app.data.oneshows.SeasonInfo
+import cx.miruro.app.ui.components.MiruroIcons
+import cx.miruro.app.ui.components.shareText
 
 /** Where "Continue watching" wants playback to resume. */
 data class ResumeTarget(val season: Int, val episode: Int, val startMs: Long)
@@ -71,6 +77,8 @@ fun ShowDetailScreen(
     mediaId: String,
     kind: MediaKind,
     fallbackTitle: String,
+    watchlist: WatchlistStore,
+    shareBase: String,
     onBack: () -> Unit,
     onPlay: (PlaybackRequest) -> Unit,
     resume: ResumeTarget? = null
@@ -86,6 +94,11 @@ fun ShowDetailScreen(
     val detail = state.detail
 
     val resolved = state.resolved
+    val watchlistRevision by watchlist.revision.collectAsStateWithLifecycle()
+    val saved =
+        remember(watchlistRevision, mediaId, kind) { watchlist.contains(mediaId, kind.name) }
+    val shareUrl =
+        if (kind == MediaKind.MOVIE) "$shareBase/movies/$mediaId" else "$shareBase/tv/$mediaId"
     LaunchedEffect(resolved) {
         if (resolved != null) {
             onPlay(
@@ -127,6 +140,36 @@ fun ShowDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            watchlist.toggle(
+                                WatchlistItem(
+                                    id = mediaId,
+                                    kind = kind.name,
+                                    title = detail?.title ?: fallbackTitle,
+                                    poster = detail?.posterUrl
+                                )
+                            )
+                        }
+                    ) {
+                        Icon(
+                            if (saved) MiruroIcons.Bookmark else MiruroIcons.BookmarkBorder,
+                            contentDescription =
+                                if (saved) "Remove from watchlist" else "Add to watchlist"
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            shareText(
+                                context,
+                                "${detail?.title ?: fallbackTitle} $shareUrl"
+                            )
+                        }
+                    ) {
+                        Icon(Icons.Filled.Share, contentDescription = "Share")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

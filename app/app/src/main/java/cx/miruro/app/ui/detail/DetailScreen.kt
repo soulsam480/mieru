@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -52,6 +53,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -65,6 +67,10 @@ import cx.miruro.app.data.Episode
 import cx.miruro.app.data.FranchiseStore
 import cx.miruro.app.data.MiruroApi
 import cx.miruro.app.data.ProgressStore
+import cx.miruro.app.data.WatchlistItem
+import cx.miruro.app.data.WatchlistStore
+import cx.miruro.app.ui.components.MiruroIcons
+import cx.miruro.app.ui.components.shareText
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,8 +78,10 @@ fun DetailScreen(
     api: MiruroApi,
     progress: ProgressStore,
     franchises: FranchiseStore,
+    watchlist: WatchlistStore,
     animeId: String,
     fallbackTitle: String,
+    shareBase: String,
     onBack: () -> Unit,
     onPlay: (animeId: String, episode: Int, title: String) -> Unit
 ) {
@@ -90,6 +98,10 @@ fun DetailScreen(
     val anime = state.anime
     val title = anime?.title?.best() ?: fallbackTitle
 
+    val context = LocalContext.current
+    val watchlistRevision by watchlist.revision.collectAsStateWithLifecycle()
+    val saved = remember(watchlistRevision, shownId) { watchlist.contains(shownId, "ANIME") }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -97,6 +109,31 @@ fun DetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            watchlist.toggle(
+                                WatchlistItem(
+                                    id = shownId,
+                                    kind = "ANIME",
+                                    title = title,
+                                    poster = anime?.coverUrl
+                                )
+                            )
+                        }
+                    ) {
+                        Icon(
+                            if (saved) MiruroIcons.Bookmark else MiruroIcons.BookmarkBorder,
+                            contentDescription =
+                                if (saved) "Remove from watchlist" else "Add to watchlist"
+                        )
+                    }
+                    IconButton(
+                        onClick = { shareText(context, "$title $shareBase/watch/$shownId") }
+                    ) {
+                        Icon(Icons.Filled.Share, contentDescription = "Share")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -140,8 +177,10 @@ fun DetailScreen(
                     }
 
                     item {
+                        val aired = state.releasedNumbers.isNotEmpty()
                         Button(
                             onClick = { onPlay(shownId, state.nextEpisode(), title) },
+                            enabled = aired,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -151,10 +190,10 @@ fun DetailScreen(
                             Spacer(Modifier.width(8.dp))
                             val ep = state.nextEpisode()
                             Text(
-                                if (state.watched.isEmpty()) {
-                                    "Watch EP $ep"
-                                } else {
-                                    "Continue · EP $ep"
+                                when {
+                                    !aired -> "Not aired yet"
+                                    state.watched.isEmpty() -> "Watch EP $ep"
+                                    else -> "Continue · EP $ep"
                                 },
                                 fontWeight = FontWeight.SemiBold
                             )

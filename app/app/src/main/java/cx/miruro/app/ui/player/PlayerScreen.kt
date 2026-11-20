@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -115,17 +116,25 @@ fun PlayerScreen(
         }
     }
 
+    var openedEpisode by remember { mutableIntStateOf(state.episode) }
     LaunchedEffect(state.stream, state.startPositionMs, state.episode) {
         val stream = state.stream ?: return@LaunchedEffect
         // A fresh stream retires whatever the previous episode was counting down to.
         upNextSeconds = null
         chrome.selectedText = null
+        val newEpisode = state.episode != openedEpisode
+        openedEpisode = state.episode
         controller.open(
             stream,
             state.startPositionMs,
-            state.mediaMetadata(animeTitle, direct?.caption)
+            state.mediaMetadata(animeTitle, direct?.caption),
+            resetSpeed = newEpisode
         )
         chrome.visible = true
+    }
+
+    LaunchedEffect(state.loading) {
+        if (state.loading) controller.player.pause()
     }
 
     // No background playback: leaving the app pauses, and the screen brightness goes back
@@ -169,8 +178,10 @@ fun PlayerScreen(
             }
     }
 
-    LaunchedEffect(chrome.visible, controller.isPlaying) {
-        if (chrome.visible && controller.isPlaying) {
+    LaunchedEffect(chrome.visible, controller.isPlaying, chrome.openSheet) {
+        // A sheet is a control the viewer is using: the bar behind it must still be there when
+        // they dismiss it.
+        if (chrome.visible && controller.isPlaying && chrome.openSheet == PlayerSheet.None) {
             delay(CHROME_TIMEOUT_MILLIS)
             chrome.visible = false
         }

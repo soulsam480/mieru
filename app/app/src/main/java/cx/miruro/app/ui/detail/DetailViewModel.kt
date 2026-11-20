@@ -10,6 +10,7 @@ import cx.miruro.app.data.MiruroApi
 import cx.miruro.app.data.ProgressStore
 import cx.miruro.app.data.hasRealSchedule
 import cx.miruro.app.data.releasedEpisodeNumbers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -64,6 +65,8 @@ class DetailViewModel(
     private val _state = MutableStateFlow(DetailUiState())
     val state: StateFlow<DetailUiState> = _state.asStateFlow()
 
+    private var loadJob: Job? = null
+
     /**
      * Loads (or switches to) a show. Season switching goes through here too: replacing the state
      * re-renders the whole page — title, artwork, episodes and the selected chip.
@@ -71,7 +74,8 @@ class DetailViewModel(
     fun load(animeId: String) {
         _state.update { it.copy(animeId = animeId, loading = true, error = null) }
 
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             val show = runCatching { api.show(animeId) }
             val episodes = runCatching { api.episodes(animeId) }
 

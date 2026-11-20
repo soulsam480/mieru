@@ -30,6 +30,7 @@ import cx.miruro.app.MiruroApp
 import cx.miruro.app.data.embed.PlaybackHandoff
 import cx.miruro.app.data.oneshows.MediaKind
 import cx.miruro.app.ui.detail.DetailScreen
+import cx.miruro.app.ui.library.LibraryScreen
 import cx.miruro.app.ui.list.ListScreen
 import cx.miruro.app.ui.media.ResumeTarget
 import cx.miruro.app.ui.media.ShowDetailScreen
@@ -43,6 +44,7 @@ private const val ROUTE_SHOWS_MOVIE = "shows/movie"
 private const val ROUTE_SHOW_DETAIL =
     "shows/{kind}/{id}?title={title}&season={season}&episode={episode}&resume={resume}"
 private const val ROUTE_SETTINGS = "settings"
+private const val ROUTE_LIBRARY = "library"
 private const val ROUTE_DETAIL = "detail/{id}?title={title}"
 private const val ROUTE_PLAYER = "player/{id}/{ep}?title={title}"
 private const val ROUTE_EMBED_PLAYER = "embed-player"
@@ -106,6 +108,7 @@ fun MiruroNavHost(app: MiruroApp) {
                     api = app.api,
                     progress = app.progress,
                     onOpenSettings = { nav.navigate(ROUTE_SETTINGS) },
+                    onOpenLibrary = { nav.navigate(ROUTE_LIBRARY) },
                     updates = app.updates,
                     onOpenAnime = { anime ->
                         nav.navigate("detail/${anime.id}?title=${Uri.encode(anime.title.best())}")
@@ -115,6 +118,21 @@ fun MiruroNavHost(app: MiruroApp) {
                             "player/${item.animeId}/${item.episode}?title=${Uri.encode(item.title)}"
                         )
                     }
+                )
+            }
+
+            composable(ROUTE_LIBRARY) {
+                LibraryScreen(
+                    progress = app.progress,
+                    watchlist = app.watchlist,
+                    onBack = { nav.popBackStack() },
+                    onOpenAnime = { id, title ->
+                        nav.navigate("detail/$id?title=${Uri.encode(title)}")
+                    },
+                    onOpenMedia = { kind, id, title ->
+                        nav.navigate(showDetailRoute(id, kind, title))
+                    },
+                    onOpenSettings = { nav.navigate(ROUTE_SETTINGS) }
                 )
             }
 
@@ -132,7 +150,9 @@ fun MiruroNavHost(app: MiruroApp) {
                     },
                     onOpen = { card ->
                         nav.navigate(showDetailRoute(card.id, "TV", card.title))
-                    }
+                    },
+                    onOpenLibrary = { nav.navigate(ROUTE_LIBRARY) },
+                    onOpenSettings = { nav.navigate(ROUTE_SETTINGS) }
                 )
             }
 
@@ -150,7 +170,9 @@ fun MiruroNavHost(app: MiruroApp) {
                     },
                     onOpen = { card ->
                         nav.navigate(showDetailRoute(card.id, "MOVIE", card.title))
-                    }
+                    },
+                    onOpenLibrary = { nav.navigate(ROUTE_LIBRARY) },
+                    onOpenSettings = { nav.navigate(ROUTE_SETTINGS) }
                 )
             }
 
@@ -184,6 +206,8 @@ fun MiruroNavHost(app: MiruroApp) {
                     mediaId = args?.getString("id").orEmpty(),
                     kind = kindOf(args?.getString("kind")),
                     fallbackTitle = args?.getString("title").orEmpty(),
+                    watchlist = app.watchlist,
+                    shareBase = app.oneShowsSource.site(),
                     onBack = { nav.popBackStack() },
                     onPlay = { request ->
                         PlaybackHandoff.offer(request)
@@ -252,8 +276,10 @@ fun MiruroNavHost(app: MiruroApp) {
                     api = app.api,
                     progress = app.progress,
                     franchises = app.franchises,
+                    watchlist = app.watchlist,
                     animeId = id,
                     fallbackTitle = backStackEntry.arguments?.getString("title").orEmpty(),
+                    shareBase = app.sources.baseUrl(),
                     onBack = { nav.popBackStack() },
                     onPlay = { playId, episode, title ->
                         nav.navigate("player/$playId/$episode?title=${Uri.encode(title)}")

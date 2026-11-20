@@ -8,6 +8,7 @@ import cx.miruro.app.data.CatalogPage
 import cx.miruro.app.data.ContinueItem
 import cx.miruro.app.data.MiruroApi
 import cx.miruro.app.data.ProgressStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -101,13 +102,23 @@ class ListViewModel(private val api: MiruroApi, private val progress: ProgressSt
 
     fun onGenreChange(genre: String?) {
         if (_state.value.genre == genre) return
+        // A queued search would cancel the load this is about to start.
+        searchJob?.cancel()
         _state.update { it.copy(genre = genre) }
         load(reset = true)
     }
 
     fun onSortChange(sort: String) {
         if (_state.value.sort == sort) return
-        _state.update { it.copy(sort = sort) }
+        searchJob?.cancel()
+        _state.update {
+            it.copy(
+                sort = sort,
+                // Latest is the unfiltered feed, and its chips are hidden, so a genre picked on
+                // another tab would otherwise keep filtering an invisible filter.
+                genre = if (sort == SORT_LATEST) null else it.genre
+            )
+        }
         load(reset = true)
     }
 
@@ -143,6 +154,9 @@ class ListViewModel(private val api: MiruroApi, private val progress: ProgressSt
                         }
                     }
                     .onFailure { error ->
+                        // The job was replaced by a newer request: its cancellation is not a
+                        // failure to show the viewer.
+                        if (error is CancellationException) throw error
                         _state.update {
                             it.copy(
                                 loading = false,
