@@ -942,6 +942,12 @@ func (p *playerPage) tick(a *App) {
 		p.failSource(a, err)
 		return
 	}
+	// A mirror that never produced a picture used to leave a black stage with
+	// the timer running. Give it 25 seconds, then try the next one.
+	if !p.player.Ready() && !p.openedAt.IsZero() && time.Since(p.openedAt) > 25*time.Second {
+		p.failSource(a, fmt.Errorf("%s sent no picture", p.sources[p.sourceIndex].Provider))
+		return
+	}
 	p.position = p.player.Position().Seconds()
 	if duration := p.player.Duration().Seconds(); duration > 0 {
 		p.duration = duration

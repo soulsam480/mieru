@@ -217,7 +217,16 @@ func (p *animePage) view(c *ui.Context, a *App) {
 			}
 		})
 
+		before := p.sort
 		ui.Segmented(c, &p.sort, "Latest", "Popular", "Top rated", "A–Z").Label("Sort").Width(360)
+		if p.sort != before {
+			// Latest is the unfiltered feed; a genre picked elsewhere must not
+			// keep filtering a chip row that is hidden.
+			if p.sort == 0 {
+				p.genre = ""
+			}
+			p.load(a, true)
+		}
 		if p.sort != 0 {
 			ui.ScrollHorizontal(c).Height(34).Children(func() {
 				ui.Row(c).Gap(6).Children(func() {
