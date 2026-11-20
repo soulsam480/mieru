@@ -409,84 +409,51 @@ func (p *playerPage) view(c *ui.Context, a *App) {
 	}
 	t := c.Theme()
 
-	ui.Column(c).Fill().Padding(24).Gap(14).Background(t.Background).Children(func() {
-		ui.Row(c).Gap(14).AlignItems(ui.Center).Children(func() {
-			if ui.Button(c, "‹ Back").Clicked() {
-				a.router.Back()
-			}
-			ui.Column(c).Gap(2).Children(func() {
-				title := p.title
-				if title == "" {
-					title = p.id
-				}
-				ui.Text(c, title).FontSize(30).Bold().SingleLine()
-				kind := map[string]string{"ANIME": "Anime", "TV": "TV Series", "MOVIE": "Movie"}[p.kind]
-				meta := kind
-				if p.kind != "MOVIE" {
-					meta += fmt.Sprintf("   ·   Season %d   ·   Episode %d", p.season, p.episode)
-				}
-				ui.Text(c, meta).FontSize(12).TextColor(ui.RGB(229, 57, 53))
+	ui.Box(c).Fill().Background(ui.RGB(0, 0, 0)).Children(func() {
+		if p.player != nil {
+			ui.Video(c, p.player).Fill().Fit(ui.Contain)
+		}
+		if p.subtitleCue() != "" {
+			p.drawCue(c, p.subtitleCue())
+		}
+		if p.loading || (p.player != nil && p.duration == 0 && p.err == "") {
+			ui.Column(c).Fill().Center().Gap(12).Children(func() {
+				ui.Spinner(c).Size(28, 28)
+				ui.Text(c, p.status).TextColor(ui.RGB(230, 230, 230))
 			})
-			ui.Spacer(c).Grow(1)
-			if p.kind != "MOVIE" {
-				if ui.Button(c, "Info").Clicked() {
-					a.router.Push(p.infoRoute())
-				}
-			}
-			if ui.Button(c, "Full").Clicked() {
-				if a.win != nil {
-					a.win.SetFullScreen(!a.win.IsFullScreen())
-				}
-			}
-		})
-
-		p.sourceBar(c, a)
-
-		ui.Box(c).Grow(1).Clip().Radius(12).Background(ui.RGB(0, 0, 0)).Children(func() {
-			if p.player != nil {
-				ui.Video(c, p.player).Fill().Fit(ui.Contain)
-			}
-			if p.loading || (p.player != nil && p.duration == 0 && p.err == "") {
-				ui.Column(c).Fill().Center().Gap(12).Children(func() {
-					ui.Spinner(c).Size(28, 28)
-					ui.Text(c, p.status).TextColor(ui.RGB(230, 230, 230))
-				})
-			}
-			if p.err != "" {
-				ui.Column(c).Fill().Center().Gap(12).Children(func() {
-					ui.Text(c, "Cannot play this episode").FontSize(18).Bold().TextColor(ui.RGB(255, 255, 255))
-					ui.Text(c, p.err).FontSize(12).TextColor(t.TextMuted).MaxLines(4).TextAlign(ui.Center)
-					ui.Row(c).Gap(8).Children(func() {
-						if ui.Button(c, "Back").Clicked() {
-							a.router.Back()
-						}
-						if ui.Button(c, "Retry").Clicked() {
-							p.loading = true
-							p.err = ""
-							p.token++
-							go p.resolve(a)
-						}
-					})
-				})
-			}
-			if p.subtitleCue() != "" {
-				p.drawCue(c, p.subtitleCue())
-			}
-			if p.player != nil {
-				p.bottomBar(c, a)
-				if window, ok := p.currentSkip(); ok {
-					if ui.Button(c, window.Label).Absolute().Right(24).Bottom(120).Clicked() {
-						p.seekTo(window.End)
+		}
+		if p.err != "" {
+			ui.Column(c).Fill().Center().Gap(12).Children(func() {
+				ui.Text(c, "Cannot play this episode").FontSize(18).Bold().TextColor(ui.RGB(255, 255, 255))
+				ui.Text(c, p.err).FontSize(12).TextColor(t.TextMuted).MaxLines(4).TextAlign(ui.Center)
+				ui.Row(c).Gap(8).Children(func() {
+					if ui.Button(c, "Back").Clicked() {
+						a.router.Back()
 					}
-				}
-				if p.ended || (p.duration > 0 && p.duration-p.position < 25) {
-					p.upNext(c, a)
+					if ui.Button(c, "Retry").Clicked() {
+						p.loading = true
+						p.err = ""
+						p.token++
+						go p.resolve(a)
+					}
+				})
+			})
+		}
+		if p.player != nil {
+			p.topBar(c, a)
+			p.bottomBar(c, a)
+			if window, ok := p.currentSkip(); ok {
+				if ui.Button(c, window.Label).Absolute().Right(24).Bottom(190).Clicked() {
+					p.seekTo(window.End)
 				}
 			}
-			if p.panel != "" {
-				p.drawPanel(c, a)
+			if p.ended || (p.duration > 0 && p.duration-p.position < 25) {
+				p.upNext(c, a)
 			}
-		})
+		}
+		if p.panel != "" {
+			p.drawPanel(c, a)
+		}
 	})
 }
 
@@ -598,6 +565,24 @@ func (p *playerPage) bottomBar(c *ui.Context, a *App) {
 				p.muted = !p.muted
 				if p.player != nil {
 					p.player.SetMuted(p.muted)
+				}
+			}
+			cc := "CC"
+			if p.subtitleIndex >= 0 {
+				cc = "CC •"
+			}
+			if ui.Button(c, cc).Clicked() {
+				p.panel = "subs"
+			}
+			if ui.Button(c, speedLabel(p.speed)).Clicked() {
+				p.panel = "speed"
+			}
+			if ui.Button(c, fmt.Sprintf("Sources %d", len(p.sources))).Clicked() {
+				p.panel = "sources"
+			}
+			if len(p.qualities) > 0 {
+				if ui.Button(c, "Quality").Clicked() {
+					p.panel = "quality"
 				}
 			}
 		})
