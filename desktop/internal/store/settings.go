@@ -53,6 +53,9 @@ func writeJSON(path string, value any) error {
 
 // Dir returns the app's data directory, creating nothing.
 func Dir() string {
+	if override := os.Getenv("MIERU_DATA_DIR"); override != "" {
+		return override
+	}
 	base, err := os.UserConfigDir()
 	if err != nil {
 		base = os.TempDir()

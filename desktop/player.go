@@ -84,6 +84,7 @@ type playerPage struct {
 	savedEnd        bool
 	nextEpisode     int
 	prevEpisode     int
+	fromCache       bool
 	upNextDismissed bool
 }
 
@@ -194,6 +195,7 @@ func (p *playerPage) resolve(a *App) {
 
 	cacheKey := embed.CacheKey{MediaID: p.id, Kind: p.kind, Season: p.season, Episode: p.episode}
 	if cached, ok := a.resolved.Get(cacheKey); ok {
+		p.fromCache = true
 		source := playbackSource{
 			Label: cached.Stream.Provider, URL: cached.Stream.URL, Headers: cached.Stream.Headers,
 			Mime: mimeOf(cached.Stream.URL), Provider: cached.Stream.Provider,
@@ -203,6 +205,7 @@ func (p *playerPage) resolve(a *App) {
 				return
 			}
 			p.sources = []playbackSource{source}
+			p.fromCache = true
 			p.subtitleTracks = cached.Subtitles
 			p.loading = false
 			p.status = ""
@@ -268,6 +271,11 @@ func (p *playerPage) resolve(a *App) {
 		}
 		remaining := append([]oneshows.Mirror(nil), mirrors[i+1:]...)
 		a.resolved.Put(cacheKey, embed.Cached{Stream: *stream, Remaining: remaining, Subtitles: tracks, Caption: p.caption()})
+		a.update(func() {
+			if p.token == token {
+				p.fromCache = false
+			}
+		})
 		a.update(func() {
 			if p.token != token {
 				return
@@ -992,6 +1000,18 @@ func (p *playerPage) failSource(a *App, err error) {
 	if p.sourceIndex+1 < len(p.sources) {
 		p.status = fmt.Sprintf("%s: %v — trying %s…", p.sources[p.sourceIndex].Provider, err, p.sources[p.sourceIndex+1].Provider)
 		p.openSource(a, p.sourceIndex+1)
+		return
+	}
+	if p.fromCache {
+		// A cached playlist is a signed URL; it can expire before its entry.
+		// Drop both and resolve from the mirrors again.
+		a.resolved.Delete(embed.CacheKey{MediaID: p.id, Kind: p.kind, Season: p.season, Episode: p.episode})
+		p.fromCache = false
+		p.loading = true
+		p.status = "Cached source expired — resolving again…"
+		p.err = ""
+		p.token++
+		go p.resolve(a)
 		return
 	}
 	p.err = err.Error()
