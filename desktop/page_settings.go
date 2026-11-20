@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -22,6 +24,9 @@ type settingsPage struct {
 	testing   bool
 	testText  string
 	token     int
+	checking  bool
+	update    string
+	updateURL string
 }
 
 func (p *settingsPage) enter(a *App) {
@@ -194,6 +199,22 @@ func (p *settingsPage) view(c *ui.Context, a *App) {
 					ui.Link(c, "GitHub", "https://github.com/soulsam480/mieru")
 					ui.Link(c, "Report an issue", "https://github.com/soulsam480/mieru/issues")
 				})
+				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+					if ui.Button(c, "Check for updates").Clicked() {
+						p.checkUpdates(a)
+					}
+					if p.checking {
+						ui.Spinner(c).Size(14, 14)
+					}
+					if p.update != "" {
+						ui.Text(c, p.update).FontSize(12).TextColor(t.TextMuted)
+					}
+					if p.updateURL != "" {
+						if ui.Button(c, "Open release").Clicked() {
+							_ = mygo.Shell.OpenExternal(p.updateURL)
+						}
+					}
+				})
 				if ui.Button(c, "Open data folder").Clicked() {
 					_ = mygo.Shell.OpenExternal("file://" + store.Dir())
 				}
@@ -221,6 +242,44 @@ func (p *settingsPage) addSource(a *App) bool {
 	a.anime.entered, a.tv.entered, a.movies.entered = false, false, false
 	a.anime.sort = 0
 	return true
+}
+
+// checkUpdates is the desktop's update path: the app cannot install itself
+// like the Android build can, so it reports the release and opens it.
+func (p *settingsPage) checkUpdates(a *App) {
+	if p.checking {
+		return
+	}
+	p.checking = true
+	p.update, p.updateURL = "", ""
+	go func() {
+		client := &http.Client{Timeout: 15 * time.Second}
+		req, _ := http.NewRequest(http.MethodGet, "https://api.github.com/repos/soulsam480/mieru/releases/latest", nil)
+		req.Header.Set("Accept", "application/vnd.github+json")
+		req.Header.Set("User-Agent", "Mieru-Desktop")
+		var release struct {
+			Tag     string `json:"tag_name"`
+			HTMLURL string `json:"html_url"`
+		}
+		message := "Could not check for updates"
+		url := ""
+		if res, err := client.Do(req); err == nil {
+			defer res.Body.Close()
+			if res.StatusCode/100 == 2 && json.NewDecoder(res.Body).Decode(&release) == nil {
+				if strings.TrimPrefix(release.Tag, "v") != appVersion {
+					message = release.Tag + " is available"
+					url = release.HTMLURL
+				} else {
+					message = "Up to date"
+				}
+			}
+		}
+		a.update(func() {
+			p.checking = false
+			p.update = message
+			p.updateURL = url
+		})
+	}()
 }
 
 func (p *settingsPage) test(a *App, base string) {

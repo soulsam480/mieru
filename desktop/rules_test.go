@@ -92,3 +92,13 @@ func TestNextAfter(t *testing.T) {
 		t.Fatalf("nextAfter at the end = %d, want 0", got)
 	}
 }
+
+func TestBeforeEpisode(t *testing.T) {
+	episodes := []miruro.Episode{episode(1, ""), episode(2, ""), episode(5, "")}
+	if got := beforeEpisode(episodes, 5); got != 2 {
+		t.Fatalf("beforeEpisode = %d, want 2", got)
+	}
+	if got := beforeEpisode(episodes, 1); got != 0 {
+		t.Fatalf("before the first = %d, want 0", got)
+	}
+}

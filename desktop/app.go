@@ -39,6 +39,7 @@ type App struct {
 	watch    *store.WatchlistStore
 	media    *media.Server
 	resolver *embed.Resolver
+	resolved *embed.Cache
 	images   *imageCache
 
 	anime      animePage
@@ -78,6 +79,7 @@ func NewApp(dataDir string) (*App, error) {
 		watch:    store.OpenWatchlist(dataDir),
 		media:    proxy,
 		resolver: embed.New(),
+		resolved: embed.NewCache(),
 		images:   newImageCache(),
 		titles:   map[string]titleInfo{},
 	}

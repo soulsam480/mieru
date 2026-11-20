@@ -69,3 +69,28 @@ video so size, colour, background and outline follow Settings.
 - `PRODUCT.md` / `DESIGN.md` are not written yet; the app follows the visual
   language of the site it replaces (dark stage, poster-led grids, episode rows
   with stills and synopsis).
+
+## Android parity
+
+| Android | Desktop |
+|---|---|
+| Anime catalogue, four sorts, genres, search, paging | yes |
+| Latest schedule with air times | yes |
+| Franchise seasons, release rules, specials filtered | yes |
+| Player: HLS/MP4, sources, quality, speed, fullscreen | yes |
+| Subtitles from provider and OpenSubtitles, styled | yes |
+| Auto-skip intro/outro | yes |
+| Up-next card | yes, manual (no countdown) |
+| Previous / next episode | yes, buttons and `N` |
+| Progress, continue watching, 95% finished hidden | yes |
+| Watchlist, library, share links | yes |
+| Mirror resolve, background alternates, fallback | yes |
+| Resolver cache, 20 minutes / 24 episodes | yes |
+| Sub/dub preference | yes |
+| Settings: mirrors add/test/reset, site, style | yes |
+| Update check | yes; opens the release (no self-install) |
+| Swipe brightness/volume gestures | no; keys instead (`↑ ↓`, `M`) |
+| In-app APK install | no; desktop packaging instead |
+
+Deliberately absent: downloads/offline. The resolver is still a hidden mygo
+window, the same offscreen mechanism as the Android WebView.

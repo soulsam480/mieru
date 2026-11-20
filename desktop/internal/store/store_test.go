@@ -94,3 +94,15 @@ func TestSettingsDefaultsAndPersistence(t *testing.T) {
 		t.Fatal("subtitle style lost")
 	}
 }
+
+func TestResumePositionIgnoresFinishedEpisodes(t *testing.T) {
+	progress := OpenProgress(t.TempDir())
+	progress.Record("a", "Show", "", 1, 1000, 60000, 0, "ANIME")
+	if got := progress.ResumePosition("a", 0, 1); got != 1000 {
+		t.Fatalf("partial resume = %d", got)
+	}
+	progress.Record("a", "Show", "", 2, 59000, 60000, 0, "ANIME")
+	if got := progress.ResumePosition("a", 0, 2); got != 0 {
+		t.Fatalf("finished resume = %d, want 0", got)
+	}
+}

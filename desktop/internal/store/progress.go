@@ -103,6 +103,19 @@ func (p *ProgressStore) Position(id string, season, episode int) int64 {
 	return p.data.Episodes[progressKey(id, season, episode)].PositionMs
 }
 
+// ResumePosition is where to start playback: 0 when the episode was finished,
+// so replaying it does not open at the last frame and end at once.
+func (p *ProgressStore) ResumePosition(id string, season, episode int) int64 {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.ensure()
+	saved := p.data.Episodes[progressKey(id, season, episode)]
+	if saved.DurationMs > 0 && float64(saved.PositionMs)/float64(saved.DurationMs) >= 0.95 {
+		return 0
+	}
+	return saved.PositionMs
+}
+
 // Snapshot returns a copy of the progress data.
 func (p *ProgressStore) Snapshot() ProgressData {
 	p.mu.Lock()

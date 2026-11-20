@@ -10,6 +10,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/video"
 
+	"mieru-desktop/internal/embed"
 	"mieru-desktop/internal/miruro"
 	"mieru-desktop/internal/oneshows"
 	"mieru-desktop/internal/subtitles"
@@ -82,6 +83,7 @@ type playerPage struct {
 	lastSave        time.Time
 	savedEnd        bool
 	nextEpisode     int
+	prevEpisode     int
 	upNextDismissed bool
 }
 
@@ -121,7 +123,7 @@ func (p *playerPage) enter(a *App) {
 
 	info := a.knownTitle(p.id)
 	p.title, p.cover = info.Title, info.Cover
-	p.resumeMs = a.progress.Position(p.id, p.season, p.episode)
+	p.resumeMs = a.progress.ResumePosition(p.id, p.season, p.episode)
 	go p.resolve(a)
 }
 
@@ -182,10 +184,34 @@ func (p *playerPage) resolve(a *App) {
 			if episodesErr == nil {
 				p.skipWindows = skipTimesFor(episodes, p.episode)
 				p.nextEpisode = nextAfter(episodes, p.episode)
+				p.prevEpisode = beforeEpisode(episodes, p.episode)
 			}
 			p.loadSubtitleStyle(a)
 			p.openSource(a, 0)
 		})
+		return
+	}
+
+	cacheKey := embed.CacheKey{MediaID: p.id, Kind: p.kind, Season: p.season, Episode: p.episode}
+	if cached, ok := a.resolved.Get(cacheKey); ok {
+		source := playbackSource{
+			Label: cached.Stream.Provider, URL: cached.Stream.URL, Headers: cached.Stream.Headers,
+			Mime: mimeOf(cached.Stream.URL), Provider: cached.Stream.Provider,
+		}
+		a.update(func() {
+			if p.token != token {
+				return
+			}
+			p.sources = []playbackSource{source}
+			p.subtitleTracks = cached.Subtitles
+			p.loading = false
+			p.status = ""
+			p.openSource(a, 0)
+			if len(cached.Subtitles) > 0 {
+				p.pickSubtitle(a, 0)
+			}
+		})
+		go p.resolveAlternates(a, token, cached.Remaining)
 		return
 	}
 
@@ -209,16 +235,20 @@ func (p *playerPage) resolve(a *App) {
 	// already knows; fetching it again here keeps the player self-contained.
 	if p.kind == "TV" {
 		if episodes, err := a.shows.Season(ctx, p.id, p.season); err == nil {
+			next, prev := 0, 0
 			for _, episode := range episodes {
-				if episode.Number > p.episode {
-					a.update(func() {
-						if p.token == token {
-							p.nextEpisode = episode.Number
-						}
-					})
-					break
+				if episode.Number > p.episode && next == 0 {
+					next = episode.Number
+				}
+				if episode.Number < p.episode {
+					prev = episode.Number
 				}
 			}
+			a.update(func() {
+				if p.token == token {
+					p.nextEpisode, p.prevEpisode = next, prev
+				}
+			})
 		}
 	}
 
@@ -237,6 +267,7 @@ func (p *playerPage) resolve(a *App) {
 			Mime: mimeOf(stream.URL), Provider: mirror.Label,
 		}
 		remaining := append([]oneshows.Mirror(nil), mirrors[i+1:]...)
+		a.resolved.Put(cacheKey, embed.Cached{Stream: *stream, Remaining: remaining, Subtitles: tracks, Caption: p.caption()})
 		a.update(func() {
 			if p.token != token {
 				return
@@ -637,6 +668,14 @@ func (p *playerPage) bottomBar(c *ui.Context, a *App) {
 			if ui.Button(c, "+10").Clicked() {
 				p.seekBy(10)
 			}
+			if p.kind != "MOVIE" {
+				if ui.Button(c, "Prev").Disabled(p.prevEpisode == 0).Clicked() {
+					p.playPrev(a)
+				}
+				if ui.Button(c, "Next").Disabled(p.nextEpisode == 0).Clicked() {
+					p.playNext(a)
+				}
+			}
 			ui.Textf(c, "%s / %s", clock(p.position), clock(p.duration)).FontSize(12).TextColor(ui.RGB(220, 220, 220))
 			ui.Spacer(c).Grow(1)
 			volume := p.volume
@@ -1013,6 +1052,18 @@ func (p *playerPage) infoRoute() string {
 	return "/anime"
 }
 
+func (p *playerPage) playPrev(a *App) {
+	if p.prevEpisode == 0 {
+		return
+	}
+	switch p.kind {
+	case "ANIME":
+		a.router.Push(fmt.Sprintf("/watch/ANIME/%s/0/%d", p.id, p.prevEpisode))
+	case "TV":
+		a.router.Push(fmt.Sprintf("/watch/TV/%s/%d/%d", p.id, p.season, p.prevEpisode))
+	}
+}
+
 func (p *playerPage) playNext(a *App) {
 	if p.nextEpisode == 0 {
 		return
@@ -1087,6 +1138,16 @@ func asFloat(value any) (float64, bool) {
 		return parsed, err == nil
 	}
 	return 0, false
+}
+
+func beforeEpisode(episodes []miruro.Episode, current int) int {
+	prev := 0
+	for _, episode := range episodes {
+		if episode.Ep() < current && episode.Ep() > prev {
+			prev = episode.Ep()
+		}
+	}
+	return prev
 }
 
 func nextAfter(episodes []miruro.Episode, current int) int {

@@ -82,10 +82,10 @@ type Stream struct {
 }
 
 type captured struct {
-	URL      string            `json:"url"`
-	Headers  map[string]string `json:"headers"`
-	Page     string            `json:"page"`
-	Cookie   string            `json:"cookie"`
+	URL     string            `json:"url"`
+	Headers map[string]string `json:"headers"`
+	Page    string            `json:"page"`
+	Cookie  string            `json:"cookie"`
 }
 
 // Resolver serialises the hidden windows: each one is a full web view, and the

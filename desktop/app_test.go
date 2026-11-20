@@ -299,3 +299,32 @@ func TestPlayerSpeedSteps(t *testing.T) {
 		t.Fatalf("speed should clamp at 2, got %v", player.speed)
 	}
 }
+
+func TestAppNavigationFlow(t *testing.T) {
+	app := newTestApp(t)
+	app.anime.entered = true
+	app.anime.loading = false
+	app.anime.items = []miruro.Anime{{ID: "a1", Title: miruro.Titles{English: "Dandadan"}}}
+	tt := ui.NewTester(app.view, 1280, 840)
+
+	if !tt.HasText("Dandadan") {
+		t.Fatalf("anime did not render: %q", tt.Texts())
+	}
+	for _, step := range []struct{ label, path string }{
+		{"TV Shows", "/tv"},
+		{"Movies", "/movies"},
+		{"Library", "/library"},
+		{"Settings", "/settings"},
+		{"Anime", "/anime"},
+	} {
+		if err := tt.Click(step.label); err != nil {
+			t.Fatalf("%s: %v", step.label, err)
+		}
+		if app.router.Path() != step.path {
+			t.Fatalf("%s went to %q, want %q", step.label, app.router.Path(), step.path)
+		}
+	}
+	if !tt.HasText("Dandadan") {
+		t.Fatalf("returning to Anime lost the grid: %q", tt.Texts())
+	}
+}
