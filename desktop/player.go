@@ -251,7 +251,7 @@ func (p *playerPage) resolve(a *App) {
 			}
 			p.openSource(a, 0)
 			if len(tracks) > 0 {
-				go p.pickSubtitle(a, 0)
+				p.pickSubtitle(a, 0)
 			}
 		})
 		go p.resolveAlternates(a, token, remaining)
@@ -407,6 +407,7 @@ func (p *playerPage) view(c *ui.Context, a *App) {
 		p.tick(a)
 		c.After(400 * time.Millisecond)
 	}
+	p.handleKeys(c, a)
 	t := c.Theme()
 
 	ui.Box(c).Fill().Background(ui.RGB(0, 0, 0)).Children(func() {
@@ -455,6 +456,93 @@ func (p *playerPage) view(c *ui.Context, a *App) {
 			p.drawPanel(c, a)
 		}
 	})
+}
+
+// handleKeys is the keyboard a media player is expected to answer: transport,
+// volume, fullscreen, panels, and the next episode.
+func (p *playerPage) handleKeys(c *ui.Context, a *App) {
+	if p.player == nil {
+		return
+	}
+	switch {
+	case c.Shortcut(0, ui.KeySpace):
+		p.togglePlay()
+	case c.Shortcut(0, ui.KeyLeft), c.Shortcut(0, ui.KeyJ):
+		p.seekBy(-10)
+	case c.Shortcut(0, ui.KeyRight), c.Shortcut(0, ui.KeyL):
+		p.seekBy(10)
+	case c.Shortcut(0, ui.KeyUp):
+		p.setVolume(p.volume + 0.05)
+	case c.Shortcut(0, ui.KeyDown):
+		p.setVolume(p.volume - 0.05)
+	case c.Shortcut(0, ui.KeyM):
+		p.muted = !p.muted
+		p.player.SetMuted(p.muted)
+	case c.Shortcut(0, ui.KeyF):
+		if a.win != nil {
+			a.win.SetFullScreen(!a.win.IsFullScreen())
+		}
+	case c.Shortcut(0, ui.KeyC):
+		if p.panel == "subs" {
+			p.panel = ""
+		} else {
+			p.panel = "subs"
+		}
+	case c.Shortcut(0, ui.KeyS):
+		if p.panel == "sources" {
+			p.panel = ""
+		} else {
+			p.panel = "sources"
+		}
+	case c.Shortcut(0, ui.KeyN):
+		p.playNext(a)
+	case c.Shortcut(0, ui.KeyBracketLeft):
+		p.nudgeSpeed(-1)
+	case c.Shortcut(0, ui.KeyBracketRight):
+		p.nudgeSpeed(1)
+	case c.Shortcut(0, ui.KeyEscape):
+		if p.panel != "" {
+			p.panel = ""
+		} else {
+			a.router.Back()
+		}
+	}
+}
+
+func (p *playerPage) setVolume(value float64) {
+	if value < 0 {
+		value = 0
+	}
+	if value > 1 {
+		value = 1
+	}
+	p.volume = value
+	if p.player != nil {
+		p.player.SetVolume(value).SetMuted(false)
+	}
+	p.muted = false
+}
+
+var playbackSpeeds = []float64{0.5, 0.75, 1, 1.25, 1.5, 1.75, 2}
+
+func (p *playerPage) nudgeSpeed(step int) {
+	index := 0
+	for i, speed := range playbackSpeeds {
+		if speed == p.speed {
+			index = i
+		}
+	}
+	index += step
+	if index < 0 {
+		index = 0
+	}
+	if index >= len(playbackSpeeds) {
+		index = len(playbackSpeeds) - 1
+	}
+	p.speed = playbackSpeeds[index]
+	if p.player != nil {
+		p.player.SetRate(p.speed)
+	}
 }
 
 // sourceBar is the row of mirror tabs and the players' panels, as the site
@@ -508,6 +596,7 @@ func (p *playerPage) topBar(c *ui.Context, a *App) {
 		ui.Column(c).Gap(2).Children(func() {
 			ui.Text(c, p.title).Bold().SingleLine().TextColor(ui.RGB(255, 255, 255))
 			ui.Text(c, p.caption()).FontSize(11).TextColor(ui.RGB(200, 200, 200))
+			ui.Text(c, "Space play · ← → seek · ↑ ↓ volume · F full · M mute · C subs").FontSize(9).TextColor(ui.RGB(150, 150, 150))
 		})
 		ui.Spacer(c).Grow(1)
 		if p.kind != "MOVIE" {
@@ -676,7 +765,12 @@ func (p *playerPage) drawPanel(c *ui.Context, a *App) {
 					}
 				case "subs":
 					if p.subtitleLoading {
-						ui.Spinner(c).Size(18, 18)
+						ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+							ui.Spinner(c).Size(14, 14)
+							ui.Text(c, "Loading track…").FontSize(11).TextColor(t.TextMuted)
+						})
+					} else if p.subtitleIndex >= 0 {
+						ui.Textf(c, "%d cues", len(p.cues)).FontSize(11).TextColor(t.TextMuted)
 					}
 					if ui.Button(c, map[bool]string{true: "✓ Off", false: "Off"}[p.subtitleIndex < 0]).Clicked() {
 						p.subtitleIndex = -1

@@ -9,6 +9,7 @@ import (
 	"mieru-desktop/internal/miruro"
 	"mieru-desktop/internal/oneshows"
 	"mieru-desktop/internal/store"
+	"mieru-desktop/internal/subtitles"
 )
 
 // newTestApp builds the window's state without network or a window, so the
@@ -257,5 +258,44 @@ func TestSpeedLabelKeepsFractions(t *testing.T) {
 	}
 	if got := speedLabel(1); got != "1x" {
 		t.Fatalf("speed label = %q", got)
+	}
+}
+
+func TestPlayerDrawsSubtitleCue(t *testing.T) {
+	app := newTestApp(t)
+	app.router = ui.NewRouter("/anime")
+	tt := ui.NewTester(app.view, 1280, 840)
+
+	app.router.Push("/watch/TV/x/1/1")
+	tt.Advance(600 * time.Millisecond)
+	app.player.loading = false
+	app.player.kind = "TV"
+	app.player.season = 1
+	app.player.episode = 1
+	app.player.subtitleIndex = 0
+	app.player.position = 12
+	app.player.duration = 600
+	app.player.cues = []subtitles.Cue{{Start: 10, End: 20, Text: "The night is dark"}}
+	tt.Frame()
+
+	if !tt.HasText("The night is dark") {
+		t.Fatalf("the cue was not drawn, texts: %q", tt.Texts())
+	}
+}
+
+func TestPlayerSpeedSteps(t *testing.T) {
+	player := &playerPage{speed: 1}
+	player.nudgeSpeed(1)
+	if player.speed != 1.25 {
+		t.Fatalf("speed after one step = %v", player.speed)
+	}
+	player.nudgeSpeed(-1)
+	if player.speed != 1 {
+		t.Fatalf("speed back = %v", player.speed)
+	}
+	player.speed = 2
+	player.nudgeSpeed(1)
+	if player.speed != 2 {
+		t.Fatalf("speed should clamp at 2, got %v", player.speed)
 	}
 }
