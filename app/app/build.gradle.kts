@@ -13,19 +13,6 @@ plugins {
     id("com.diffplug.spotless")
 }
 
-spotless {
-    kotlin {
-        target("src/**/*.kt")
-        ktlint("1.8.0")
-        trimTrailingWhitespace()
-        endWithNewline()
-    }
-    kotlinGradle {
-        target("*.gradle.kts")
-        ktlint("1.8.0")
-    }
-}
-
 android {
     namespace = "cx.miruro.app"
     compileSdk = 37
@@ -101,6 +88,7 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.10.2")
 
     implementation("com.squareup.okhttp3:okhttp:5.5.1")
+    implementation(project(":core:model"))
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 
