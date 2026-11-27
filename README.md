@@ -182,7 +182,7 @@ unaffected by either change.
 | Setting | Default | Used for |
 |---|---|---|
 | Miruro-compatible base URL (a list) | `https://www.miruro.cx` | Anime catalogue, search, `/play` and media requests. `Referer`, `Origin` and `Sec-Fetch-Site` are derived from it, so each entry works as its own mirror. `Sources` can test, add and remove entries. |
-| 1shows site URL | `https://www.1shows.org` | TV and movie catalogue, search, seasons, and `external_ids` for subtitles. The trending host is `db.` in front of the configured host. |
+| 1waves site URL | `https://www.1waves.gd` | TV and movie catalogue, search, seasons, and `external_ids` for subtitles. The trending host is `db.` in front of the configured host. |
 
 ## Project layout
 

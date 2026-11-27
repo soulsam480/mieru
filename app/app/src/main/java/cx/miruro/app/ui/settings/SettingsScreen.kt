@@ -229,7 +229,7 @@ fun SettingsScreen(
             }
 
             Spacer(Modifier.height(14.dp))
-            SectionTitle("1shows (TV & Movies)")
+            SectionTitle("1waves (TV & Movies)")
             Hint(
                 "Metadata and episode playback come from this site. Point it at a mirror when " +
                     "the current host is blocked or goes down; the db. trending host is derived " +
@@ -243,7 +243,7 @@ fun SettingsScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Site URL") },
-                placeholder = { Text("https://www.1shows.org") },
+                placeholder = { Text("https://www.1waves.gd") },
                 singleLine = true
             )
             Row(

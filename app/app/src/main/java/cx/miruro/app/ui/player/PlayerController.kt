@@ -42,6 +42,8 @@ internal class PlayerController(context: Context) {
         private set
     var textGroups by mutableStateOf<List<Tracks.Group>>(emptyList())
         private set
+    var audioGroups by mutableStateOf<List<Tracks.Group>>(emptyList())
+        private set
     var lastError by mutableStateOf<String?>(null)
         private set
     var videoAspectRatio by mutableStateOf(16f / 9f)
@@ -91,6 +93,7 @@ internal class PlayerController(context: Context) {
             override fun onTracksChanged(tracks: Tracks) {
                 videoGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }
                 textGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_TEXT }
+                audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
             }
 
             override fun onPlayerError(error: PlaybackException) {
@@ -199,6 +202,16 @@ internal class PlayerController(context: Context) {
                         )
                     }
                 }.build()
+    }
+
+    fun useAudioGroup(group: Tracks.Group, trackIndex: Int) {
+        player.trackSelectionParameters =
+            player.trackSelectionParameters
+                .buildUpon()
+                .setOverrideForType(
+                    TrackSelectionOverride(group.mediaTrackGroup, trackIndex)
+                )
+                .build()
     }
 
     fun clearError() {
