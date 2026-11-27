@@ -14,7 +14,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 
 /**
- * Metadata for the 1shows catalogue. Its own client: the site rejects requests that do not look
+ * Metadata for the 1waves catalogue. Its own client: the site rejects requests that do not look
  * same-origin, and the Miruro interceptor would point its Referer at the wrong host.
  */
 class OneShowsApi(private val siteUrl: () -> String = { OneShowsStore.DEFAULT_SITE }) {
@@ -75,7 +75,7 @@ class OneShowsApi(private val siteUrl: () -> String = { OneShowsStore.DEFAULT_SI
         MediaKind.MOVIE ->
             get("$site/api/movie/$id", MovieDetailDto.serializer()).toDetail(id)
 
-        MediaKind.ANIME -> throw IllegalArgumentException("1shows has no anime catalogue")
+        MediaKind.ANIME -> throw IllegalArgumentException("1waves has no anime catalogue")
     }
 
     /** The IMDb id, which is how subtitle providers key their catalogues. */
@@ -111,7 +111,7 @@ class OneShowsApi(private val siteUrl: () -> String = { OneShowsStore.DEFAULT_SI
     ): List<EmbedProvider> {
         val feed =
             get(
-                url = "$PROVIDERS/embed_providers?site=1shows",
+                url = "$PROVIDERS/embed_providers?site=${OneShowsStore.feedName(site)}",
                 serializer = ProvidersDto.serializer(),
                 extraHeaders = mapOf("Origin" to site)
             )

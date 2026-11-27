@@ -52,7 +52,15 @@ import androidx.media3.common.Tracks
 import cx.miruro.app.data.StreamOption
 import cx.miruro.app.data.SubtitleStyle
 
-internal enum class PlayerSheet { None, Sources, Subtitles, SubtitleStyle, Quality, Speed }
+internal enum class PlayerSheet {
+    None,
+    Sources,
+    Subtitles,
+    SubtitleStyle,
+    Audio,
+    Quality,
+    Speed
+}
 
 /** Transient chrome state: visibility, which sheet is open, chosen tracks. */
 @Stable
@@ -67,6 +75,7 @@ internal class PlayerChromeState {
      * which is why the language name is not either.
      */
     var selectedText by mutableStateOf<Pair<String, Int>?>(null)
+    var selectedAudio by mutableStateOf<Pair<String, Int>?>(null)
     var qualityLabel by mutableStateOf<String?>(null)
 }
 
@@ -152,7 +161,7 @@ internal fun PlayerBottomBar(
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Spacer(Modifier.weight(1f))
 
@@ -163,6 +172,7 @@ internal fun PlayerBottomBar(
                 label = if (chrome.subtitleLanguage == null) "CC off" else "CC",
                 muted = chrome.subtitleLanguage == null
             ) { onOpenSheet(PlayerSheet.Subtitles) }
+            PlayerPill("Audio") { onOpenSheet(PlayerSheet.Audio) }
             PlayerPill(chrome.qualityLabel ?: "Auto") { onOpenSheet(PlayerSheet.Quality) }
             PlayerPill(
                 label = "Speed " + formatSpeed(controller.playbackSpeed),
@@ -292,6 +302,30 @@ internal fun PlayerSheets(
                 }
             }
 
+            PlayerSheet.Audio -> SheetContent("Audio") {
+                if (controller.audioGroups.isEmpty()) {
+                    SheetRow(label = "No audio tracks in this source", selected = false) {}
+                }
+                controller.audioGroups.forEach { group ->
+                    (0 until group.length).forEach { index ->
+                        val format = group.getTrackFormat(index)
+                        SheetRow(
+                            label = audioLabel(format.language, format.label),
+                            supporting = format.language,
+                            selected =
+                                chrome.selectedAudio?.let { (groupId, picked) ->
+                                    group.mediaTrackGroup.id == groupId && picked == index
+                                } ?: false,
+                            onClick = {
+                                chrome.selectedAudio = group.mediaTrackGroup.id to index
+                                controller.useAudioGroup(group, index)
+                                dismiss()
+                            }
+                        )
+                    }
+                }
+            }
+
             PlayerSheet.Quality -> SheetContent("Quality") {
                 SheetRow(
                     label = "Auto",
@@ -413,7 +447,7 @@ internal fun PlayerPill(
             .clip(RoundedCornerShape(50))
             .background(Color.White.copy(alpha = if (enabled) 0.10f else 0.04f))
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 13.dp, vertical = 7.dp)
+            .padding(horizontal = 9.dp, vertical = 7.dp)
     ) {
         Text(
             label,
@@ -497,12 +531,16 @@ private fun subtitleLabel(format: Format): String {
     return languageName(code) ?: code?.uppercase() ?: format.label ?: "Track"
 }
 
+internal fun audioLabel(language: String?, label: String?): String =
+    languageName(language) ?: label ?: "Track"
+
 /** "eng", "en" and "hbs-hrv" all get a readable name; unknown codes stay as they are. */
-private fun languageName(code: String?): String? {
-    val tag = code?.lowercase()?.substringBefore('-')?.takeIf { it.isNotBlank() } ?: return null
+internal fun languageName(code: String?): String? {
+    val languageTag = code?.lowercase() ?: return null
+    val tag = languageTag.substringBefore('-').takeIf { it.isNotBlank() } ?: return null
     ISO_639_2[tag]?.let { return it }
-    val name = java.util.Locale.forLanguageTag(tag).getDisplayName(java.util.Locale.ENGLISH)
-    return name.takeIf { it.isNotBlank() && !it.equals(tag, ignoreCase = true) }
+    val name = java.util.Locale.forLanguageTag(languageTag).getDisplayName(java.util.Locale.ENGLISH)
+    return name.takeIf { it.isNotBlank() && !it.equals(languageTag, ignoreCase = true) }
 }
 
 /** The three-letter languages OpenSubtitles returns that Android does not resolve on its own. */

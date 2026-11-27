@@ -9,7 +9,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 private data class OneShowsConfig(val site: String = "")
 
 /**
- * Where the 1shows catalogue lives. One URL, because the site's own deployment decides its
+ * Where the 1waves catalogue lives. One URL, because the site's own deployment decides its
  * subdomains: the trending list is served by the `db.` host, so the app derives it from whichever
  * site is configured.
  */
@@ -25,7 +25,7 @@ class OneShowsStore(private val file: File) {
 
     fun site(): String = synchronized(lock) {
         ensureLoaded()
-        config.site.ifBlank { DEFAULT_SITE }
+        config.site.takeIf { it.isNotBlank() && it != LEGACY_SITE } ?: DEFAULT_SITE
     }
 
     /** Returns false for anything that is not a usable http(s) base. */
@@ -67,7 +67,8 @@ class OneShowsStore(private val file: File) {
     }
 
     companion object {
-        const val DEFAULT_SITE = "https://www.1shows.org"
+        const val DEFAULT_SITE = "https://www.1waves.gd"
+        private const val LEGACY_SITE = "https://www.1shows.org"
 
         /** Accepts "host", "host/path" and full URLs; anything without a host is refused. */
         fun normalize(raw: String): String? {
@@ -85,9 +86,14 @@ class OneShowsStore(private val file: File) {
         }
 
         fun deriveDatabase(site: String): String {
-            val url = runCatching { site.toHttpUrl() }.getOrNull() ?: return "https://db.1shows.org"
+            val url = runCatching { site.toHttpUrl() }.getOrNull() ?: return "https://db.1waves.gd"
             val host = url.host.removePrefix("www.")
             return "${url.scheme}://db.$host"
+        }
+
+        fun feedName(site: String): String {
+            val host = runCatching { site.toHttpUrl() }.getOrNull()?.host ?: return ""
+            return host.removePrefix("www.").substringBefore('.')
         }
     }
 }
