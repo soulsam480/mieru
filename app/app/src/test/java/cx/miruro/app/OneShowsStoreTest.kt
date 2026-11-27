@@ -15,8 +15,17 @@ class OneShowsStoreTest {
     fun defaults_to_the_public_site() {
         val store = OneShowsStore(tempFile("oneshows.json"))
 
-        assertEquals("https://www.1shows.org", store.site())
-        assertEquals("https://db.1shows.org", OneShowsStore.deriveDatabase(store.site()))
+        assertEquals("https://www.1waves.gd", store.site())
+        assertEquals("https://db.1waves.gd", OneShowsStore.deriveDatabase(store.site()))
+        assertEquals("1waves", OneShowsStore.feedName(store.site()))
+    }
+
+    @Test
+    fun the_old_default_site_migrates_to_the_live_one() {
+        val file = tempFile("oneshows.json")
+        file.writeText("""{"site":"https://www.1shows.org"}""")
+
+        assertEquals("https://www.1waves.gd", OneShowsStore(file).site())
     }
 
     @Test
@@ -35,8 +44,8 @@ class OneShowsStoreTest {
     fun trailing_slashes_and_scheme_are_tolerated() {
         val store = OneShowsStore(tempFile("oneshows.json"))
 
-        assertEquals(true, store.setSite("https://www.1shows.org/"))
-        assertEquals("https://www.1shows.org", store.site())
+        assertEquals(true, store.setSite("https://www.mysite.tld/"))
+        assertEquals("https://www.mysite.tld", store.site())
     }
 
     @Test
@@ -55,6 +64,6 @@ class OneShowsStoreTest {
         store.setSite("https://mirror.example.org")
 
         store.reset()
-        assertEquals("https://www.1shows.org", store.site())
+        assertEquals("https://www.1waves.gd", store.site())
     }
 }
